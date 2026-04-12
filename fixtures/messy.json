@@ -1,0 +1,44 @@
+{
+  "id": 42,
+  "uid": "abc123",
+  "title": "My Service Dashboard",
+  "iteration": 1712900000000,
+  "version": 17,
+  "schemaVersion": 36,
+  "timezone": "browser",
+  "tags": ["service", "prod"],
+  "refresh": "1m",
+  "panels": [
+    {
+      "id": 3,
+      "title": "Error Rate",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"refId": "B", "expr": "rate(errors_total[5m])"},
+        {"refId": "A", "expr": "rate(requests_total[5m])"}
+      ]
+    },
+    {
+      "id": 1,
+      "title": "Request Rate",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"refId": "A", "expr": "rate(http_requests_total[5m])"}
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {"name": "namespace", "type": "query", "query": "label_values(namespace)"},
+      {"name": "env", "type": "custom", "options": []}
+    ]
+  },
+  "annotations": {
+    "list": [
+      {"name": "Deployments", "enable": true},
+      {"name": "Alerts", "enable": false}
+    ]
+  }
+}

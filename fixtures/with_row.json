@@ -1,0 +1,33 @@
+{
+  "id": 7,
+  "uid": "xyz789",
+  "title": "Row Dashboard",
+  "iteration": 9999999,
+  "version": 3,
+  "schemaVersion": 36,
+  "timezone": "utc",
+  "panels": [
+    {
+      "id": 10,
+      "title": "My Row",
+      "type": "row",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 1},
+      "panels": [
+        {
+          "id": 11,
+          "title": "Nested B",
+          "type": "stat",
+          "gridPos": {"x": 12, "y": 1, "w": 12, "h": 4},
+          "targets": [{"refId": "A", "expr": "up"}]
+        },
+        {
+          "id": 12,
+          "title": "Nested A",
+          "type": "stat",
+          "gridPos": {"x": 0, "y": 1, "w": 12, "h": 4},
+          "targets": [{"refId": "A", "expr": "up"}]
+        }
+      ]
+    }
+  ]
+}

@@ -11,9 +11,9 @@ When storing Grafana dashboards in git — via provisioning, Git Sync, or manual
 ## Installation
 
 ```bash
-pip install '.[visual]'
+pip install '.'
 # or, with uv:
-uv tool install '.[visual]'
+uv tool install '.'
 ```
 
 This places a single `dashdiff` executable on your `$PATH`. No other scripts are needed.

@@ -8,7 +8,7 @@ import json
 import pathlib
 import pytest
 
-from grafana_normalize import normalize
+from dashdiff.normalize import normalize
 
 FIXTURES = pathlib.Path(__file__).parent.parent / "fixtures"
 
@@ -210,3 +210,99 @@ class TestFixtureRoundTrip:
         result = normalize(load("messy.json"))
         names = [a["name"] for a in result["annotations"]["list"]]
         assert names == ["Alerts", "Deployments"]
+
+
+# ---------------------------------------------------------------------------
+# Two-version diff scenario
+#
+# messy.json and messy_v2.json are semantically almost identical dashboards
+# that differ only in:
+#   1. The Error Rate panel's target A window: 5m → 2m  (real change)
+#   2. The tags array element order: ["service","prod"] → ["prod","service"]
+#      (tags are a set in Grafana; this is a no-op, but we intentionally do
+#       NOT sort free-form arrays by default, so it surfaces as a diff)
+#
+# Everything else — bumped id/version/iteration, shuffled keys, reordered
+# panels, reordered targets, relocated templating/annotations blocks — must
+# be invisible after normalization.
+# ---------------------------------------------------------------------------
+
+class TestTwoVersionDiff:
+    def _diff_keys(self, a: dict, b: dict, path: str = "") -> list[str]:
+        """Return a list of dotted key-paths that differ between a and b."""
+        diffs = []
+        all_keys = set(a) | set(b)
+        for k in sorted(all_keys):
+            full = f"{path}.{k}" if path else k
+            if k not in a:
+                diffs.append(f"+{full}")
+            elif k not in b:
+                diffs.append(f"-{full}")
+            elif isinstance(a[k], dict) and isinstance(b[k], dict):
+                diffs.extend(self._diff_keys(a[k], b[k], full))
+            elif a[k] != b[k]:
+                diffs.append(full)
+        return diffs
+
+    def test_noise_fields_vanish(self):
+        """id, version, and iteration must not appear in either normalised form."""
+        v1 = normalize(load("messy.json"))
+        v2 = normalize(load("messy_v2.json"))
+        for field in ("id", "version", "iteration"):
+            assert field not in v1, f"{field} leaked into v1"
+            assert field not in v2, f"{field} leaked into v2"
+
+    def test_only_expected_differences_remain(self):
+        """
+        After normalization (lenient mode) the only changed path must be the
+        query window — the tag reorder is hidden because lenient mode sorts tags.
+        """
+        v1 = normalize(load("messy.json"))
+        v2 = normalize(load("messy_v2.json"))
+        changed = self._diff_keys(v1, v2)
+        # At least one panels path must differ (the changed query)
+        panel_diffs = [p for p in changed if p.startswith("panels")]
+        assert panel_diffs, "expected a panels.*.targets.*.expr change"
+        # tags must NOT differ — lenient mode sorts them, hiding the reorder
+        assert "tags" not in changed, "tags should be hidden by lenient mode"
+        # Nothing outside panels should differ
+        unexpected = [p for p in changed if not p.startswith("panels")]
+        assert unexpected == [], f"unexpected differences after normalization: {unexpected}"
+
+    def test_panel_count_unchanged(self):
+        v1 = normalize(load("messy.json"))
+        v2 = normalize(load("messy_v2.json"))
+        assert len(v1["panels"]) == len(v2["panels"])
+
+    def test_panel_order_identical(self):
+        """Both versions must produce panels in the same stable order."""
+        v1 = normalize(load("messy.json"))
+        v2 = normalize(load("messy_v2.json"))
+        assert [p["title"] for p in v1["panels"]] == [p["title"] for p in v2["panels"]]
+
+    def test_target_order_identical(self):
+        """Targets must be in the same refId order in both versions."""
+        v1 = normalize(load("messy.json"))
+        v2 = normalize(load("messy_v2.json"))
+        for p1, p2 in zip(v1["panels"], v2["panels"]):
+            refs1 = [t["refId"] for t in p1.get("targets", [])]
+            refs2 = [t["refId"] for t in p2.get("targets", [])]
+            assert refs1 == refs2, f"target order differs in panel '{p1['title']}'"
+
+    def test_key_order_identical(self):
+        """Top-level keys must be in the same sorted order in both versions."""
+        v1 = normalize(load("messy.json"))
+        v2 = normalize(load("messy_v2.json"))
+        assert list(v1.keys()) == list(v2.keys())
+
+    def test_the_one_real_query_change_is_visible(self):
+        """The 5m → 2m window change in Error Rate target A must be detectable."""
+        v1 = normalize(load("messy.json"))
+        v2 = normalize(load("messy_v2.json"))
+        error_panel_v1 = next(p for p in v1["panels"] if p["title"] == "Error Rate")
+        error_panel_v2 = next(p for p in v2["panels"] if p["title"] == "Error Rate")
+        target_a_v1 = next(t for t in error_panel_v1["targets"] if t["refId"] == "A")
+        target_a_v2 = next(t for t in error_panel_v2["targets"] if t["refId"] == "A")
+        assert target_a_v1["expr"] != target_a_v2["expr"]
+        assert "5m" in target_a_v1["expr"]
+        assert "2m" in target_a_v2["expr"]

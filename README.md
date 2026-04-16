@@ -10,9 +10,11 @@ When storing Grafana dashboards in git, `git diff` tends to produce walls of noi
 ## Installation
 
 ```bash
-pip install '.[visual]'
+pip install '.'
 # or, with uv:
-uv tool install '.[visual]'
+uv tool install '.'
+# or 
+uv run dashdiff
 ```
 
 This places a single `dashdiff` executable on your `$PATH`.

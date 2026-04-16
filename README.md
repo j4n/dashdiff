@@ -2,21 +2,20 @@
 
 Git diff helpers for Grafana dashboard JSON files.
 
-When storing Grafana dashboards in git — via provisioning, Git Sync, or manual export — `git diff` tends to produce walls of noise: auto-incremented counters, arbitrary key ordering emitted by the Grafana UI, panels and queries shifting position in the JSON array when dragged around the canvas.
+When storing Grafana dashboards in git, `git diff` tends to produce walls of noise: `dashdiff` normalises the JSON into a stable, human-readable representation so that Git shows only meaningful changes, and provides a visual box-model diff in the terminal.
 
-`dashdiff` normalises the JSON into a stable, human-readable representation so that Git shows only meaningful changes, and provides a rich visual box-model diff in the terminal.
-
+![dashdiff in action](screenshot.webp)
 ---
 
 ## Installation
 
 ```bash
-pip install '.'
+pip install '.[visual]'
 # or, with uv:
-uv tool install '.'
+uv tool install '.[visual]'
 ```
 
-This places a single `dashdiff` executable on your `$PATH`. No other scripts are needed.
+This places a single `dashdiff` executable on your `$PATH`.
 
 ---
 
@@ -24,10 +23,10 @@ This places a single `dashdiff` executable on your `$PATH`. No other scripts are
 
 ```
 dashdiff normalize (n)   Normalise a dashboard file → stdout
-dashdiff diff     (d)    Unified text diff of two normalised files
-dashdiff visual   (v)    Rich terminal box-model grid visualiser
-dashdiff detail   (t)    Grid visualiser interleaved with per-panel change details
-dashdiff gittool  (g)    GIT_EXTERNAL_DIFF adapter (not for direct use)
+dashdiff diff      (d)   Unified text diff of two normalised files
+dashdiff visual    (v)   Rich terminal box-model grid visualiser
+dashdiff detail    (t)   Grid visualiser interleaved with per-panel change details
+dashdiff gittool   (g)   GIT_EXTERNAL_DIFF adapter (not for direct use)
 ```
 
 All subcommands accept `--strict` to use strict normalisation mode (see below).
@@ -40,7 +39,7 @@ There are three independent mechanisms for wiring `dashdiff` into Git. They serv
 
 ### 1. `textconv` — for `git diff`, `git show`, `git log -p`
 
-The `textconv` mechanism tells Git to pass the JSON file through a normaliser *before* computing the diff. This is fast, pipe-friendly, and works in CI.
+The `textconv` mechanism tells Git to pass the JSON file through a normaliser *before* computing the diff.
 
 **Setup:**
 
@@ -148,45 +147,30 @@ dashdiff normalize dashboard.json           # lenient (default)
 dashdiff normalize --strict dashboard.json  # strict
 ```
 
-The core design question for every array in the Grafana JSON schema is: *does element order have any functional effect on what the dashboard renders or how it behaves?* If not, the array is treated as a set in lenient mode and sorted to a canonical order.
-
 ### Fields stripped in both modes
 
-| Field | Reason |
-|---|---|
-| `id` | Database-generated integer; meaningless outside the originating Grafana instance |
-| `iteration` | Unix millisecond timestamp written on every save |
-| `version` | Auto-incremented save counter |
-| `panels[*].id` | Integer assigned by the UI; shifts when panels are added or removed |
-| `null` values | Stripped entirely in lenient mode; preserved in strict mode |
+| Field          | Reason                                                                           |
+|----------------|----------------------------------------------------------------------------------|
+| `id`           | Database-generated integer; meaningless outside the originating Grafana instance |
+| `iteration`    | Unix millisecond timestamp written on every save                                 |
+| `version`      | Auto-incremented save counter                                                    |
+| `panels[*].id` | Integer assigned by the UI; shifts when panels are added or removed              |
+| `null` values  | Stripped entirely in lenient mode; preserved in strict mode                      |
 
 ### Array normalisation
 
-| Array | Lenient (default) | Strict | Rationale |
-|---|---|---|---|
-| `tags` | Sorted alphabetically | Document order | Grafana treats tags as a set; the UI sorts them for display anyway |
-| `panels` | Sorted by `(gridPos.y, gridPos.x, title)` | Sorted by `(gridPos.y, gridPos.x, title)` | Visual position is encoded in `gridPos`, not array index |
-| `panels[*].targets` | Sorted by `refId` | Sorted by `refId` | `refId` is the stable identity of a query |
-| `templating.list` | Sorted by `name` | Sorted by `name` | Variables are identified by name, not position |
-| `templating.list[*].options` | Sorted by `value` | Document order | Cached option values are re-fetched on load; stored order is cosmetic |
-| `annotations.list` | Sorted by `name` | Sorted by `name` | Identified by name |
-| `timepicker.refresh_intervals` | Sorted alphabetically | Document order | Dropdown order is a UI preference with no functional effect |
-| `timepicker.quick_ranges` | Sorted by `display` | Document order | Same reasoning as `refresh_intervals` |
-| `panels[*].transformations` | Document order | Document order | **Pipeline** — reordering transformations changes the output |
-| `panels[*].overrides` | Document order | Document order | Later overrides win on the same field; order is significant |
-| `links` | Document order | Document order | Link bar render order is intentional |
+| Array                          | Lenient (default)                         | Strict                                    | Rationale                                                             |
+|--------------------------------|-------------------------------------------|-------------------------------------------|-----------------------------------------------------------------------|
+| `tags`                         | Sorted alphabetically                     | Document order                            | Grafana treats tags as a set; the UI sorts them for display anyway    |
+| `panels`                       | Sorted by `(gridPos.y, gridPos.x, title)` | Sorted by `(gridPos.y, gridPos.x, title)` | Visual position is encoded in `gridPos`, not array index              |
+| `panels[*].targets`            | Sorted by `refId`                         | Sorted by `refId`                         | `refId` is the stable identity of a query                             |
+| `templating.list`              | Sorted by `name`                          | Sorted by `name`                          | Variables are identified by name, not position                        |
+| `templating.list[*].options`   | Sorted by `value`                         | Document order                            | Cached option values are re-fetched on load; stored order is cosmetic |
+| `annotations.list`             | Sorted by `name`                          | Sorted by `name`                          | Identified by name                                                    |
+| `timepicker.refresh_intervals` | Sorted alphabetically                     | Document order                            | Dropdown order is a UI preference with no functional effect           |
+| `timepicker.quick_ranges`      | Sorted by `display`                       | Document order                            | Same reasoning as `refresh_intervals`                                 |
+| `panels[*].transformations`    | Document order                            | Document order                            | **Pipeline** — reordering transformations changes the output          |
+| `panels[*].overrides`          | Document order                            | Document order                            | Later overrides win on the same field; order is significant           |
+| `links`                        | Document order                            | Document order                            | Link bar render order is intentional                                  |
 
 All JSON object keys are sorted alphabetically in both modes, eliminating diff noise from arbitrary key ordering in Grafana API output.
-
----
-
-## Development
-
-This project was built using Red-Green Test-Driven Development throughout.
-
-```bash
-pip install -e '.[dev]'
-python -m pytest tests/ -v
-```
-
-The test suite covers: noise stripping, null-vs-absent equivalence, key ordering, panel ordering, target ordering, template variable ordering, annotation ordering, nested row panels, strict vs lenient mode behaviour, a full two-version jumbled diff scenario, multi-badge change classification, interleaved per-band layout, narrow terminal scaling, and the grid layout engine.

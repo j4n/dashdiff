@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 GRID_COLUMNS: Final[int] = 24   # Grafana's fixed canvas width
-NARROW_WIDTH: Final[int] = 140  # Below this, switch from side-by-side to stacked layout
+NARROW_WIDTH: Final[int] = 100  # Below this, switch from side-by-side to stacked layout
 
 
 def truncate_title(title: str, max_chars: int) -> str:
@@ -640,6 +640,7 @@ def build_band_renderables(
     changes:       dict[str, frozenset[PanelChange]],
     path_changes:  dict[str, list[object]],
     console_width: int = 160,
+    show_unchanged_panels: bool = False,
 ) -> list[object]:
     """
     Build the renderables for a single horizontal band (y-row) in interleaved
@@ -693,7 +694,21 @@ def build_band_renderables(
     # 1. Grid row — side-by-side (wide) or stacked (narrow)
     # ------------------------------------------------------------------ #
 
-    def _one_side_table(panels: list[GridPanel], side_width: int) -> object:
+    def _filter_changes_for_side(change: frozenset[PanelChange], is_before: bool) -> frozenset[PanelChange]:
+        """Filter change badges based on side context.
+
+        Before side: show only REMOVED (panels deleted)
+        After side: show ADDED, MODIFIED_* (changes that occurred)
+        """
+        if is_before:
+            # Before side: keep only REMOVED badges
+            filtered = frozenset({PanelChange.REMOVED}) & change
+        else:
+            # After side: remove REMOVED badges (those only make sense on before side)
+            filtered = change - {PanelChange.REMOVED}
+        return filtered or frozenset({PanelChange.UNCHANGED})
+
+    def _one_side_table(panels: list[GridPanel], side_width: int, is_before: bool) -> object:
         """Build a single-side band table (one row of panel boxes)."""
         if not panels:
             from rich.text import Text
@@ -717,13 +732,25 @@ def build_band_renderables(
         for w, _ in cells:
             band_table.add_column(ratio=w, min_width=w * unit_px)
         row_cells: list[object] = [
-            _panel_cell(p, change=changes.get(p.title, frozenset({PanelChange.UNCHANGED})),
+            _panel_cell(p, change=_filter_changes_for_side(
+                changes.get(p.title, frozenset({PanelChange.UNCHANGED})), is_before),
                         fixed_height=max_h)
             if p is not None else _spacer_cell(w)
             for w, p in cells
         ]
         band_table.add_row(*row_cells)
         return band_table
+
+    # Filter panels to show: by default only changed panels, with --full show all
+    _unchanged = frozenset({PanelChange.UNCHANGED})
+    if show_unchanged_panels:
+        # Show all panels in the grid
+        grid_before = before_panels
+        grid_after = after_panels
+    else:
+        # Show only panels that have changes
+        grid_before = [p for p in before_panels if changes.get(p.title, _unchanged) != _unchanged]
+        grid_after = [p for p in after_panels if changes.get(p.title, _unchanged) != _unchanged]
 
     if console_width >= NARROW_WIDTH:
         # Wide: side-by-side two-column outer table
@@ -736,8 +763,8 @@ def build_band_renderables(
         outer.add_column("before", ratio=1)
         outer.add_column("after",  ratio=1)
         outer.add_row(
-            _one_side_table(before_panels, console_width // 2),
-            _one_side_table(after_panels,  console_width // 2),
+            _one_side_table(grid_before, console_width // 2, is_before=True),
+            _one_side_table(grid_after,  console_width // 2, is_before=False),
         )
         renderables.append(outer)
     else:
@@ -746,9 +773,9 @@ def build_band_renderables(
         from rich.console import Group
         renderables.append(Group(
             Rule("before", style="dim", align="left"),
-            _one_side_table(before_panels, console_width),
+            _one_side_table(grid_before, console_width, is_before=True),
             Rule("after",  style="dim", align="left"),
-            _one_side_table(after_panels,  console_width),
+            _one_side_table(grid_after,  console_width, is_before=False),
         ))
 
     # ------------------------------------------------------------------ #

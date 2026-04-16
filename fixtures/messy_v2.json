@@ -25,7 +25,7 @@
       "id": 7,
       "type": "timeseries",
       "title": "Error Rate",
-      "gridPos": {"w": 12, "h": 8, "y": 0, "x": 12},
+      "gridPos": {"w": 8, "h": 8, "y": 0, "x": 8},
       "targets": [
         {"expr": "rate(errors_total[5m])",   "refId": "B"},
         {"expr": "rate(requests_total[2m])", "refId": "A"}
@@ -35,9 +35,18 @@
       "id": 2,
       "type": "timeseries",
       "title": "Request Rate",
-      "gridPos": {"w": 12, "h": 8, "y": 0, "x": 0},
+      "gridPos": {"w": 8, "h": 8, "y": 0, "x": 0},
       "targets": [
         {"expr": "rate(http_requests_total[5m])", "refId": "A"}
+      ]
+    },
+    {
+      "id": 9,
+      "type": "gauge",
+      "title": "CPU Usage",
+      "gridPos": {"w": 8, "h": 8, "y": 0, "x": 16},
+      "targets": [
+        {"expr": "avg(rate(node_cpu_seconds_total{mode!=\"idle\"}[5m]))", "refId": "A"}
       ]
     }
   ]

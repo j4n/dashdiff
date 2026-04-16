@@ -90,6 +90,7 @@ class TestBuildBandRenderablesSkipsUnchanged:
             changes=ALL_UNCHANGED,
             path_changes={},
             console_width=160,
+            show_unchanged_panels=True,
         )
         assert result == [], (
             f"Expected empty list for all-unchanged band, got {len(result)} renderables"
@@ -110,6 +111,7 @@ class TestBuildBandRenderablesSkipsUnchanged:
             changes=changes,
             path_changes={},
             console_width=160,
+            show_unchanged_panels=True,
         )
         assert len(result) >= 1, (
             "Expected at least one renderable when one panel is changed"
@@ -126,6 +128,7 @@ class TestBuildBandRenderablesSkipsUnchanged:
             changes=changes,
             path_changes={},
             console_width=160,
+            show_unchanged_panels=True,
         )
         assert len(result) >= 1, "Expected renderable for band with added panel"
 
@@ -140,6 +143,7 @@ class TestBuildBandRenderablesSkipsUnchanged:
             changes=changes,
             path_changes={},
             console_width=160,
+            show_unchanged_panels=True,
         )
         assert len(result) >= 1, "Expected renderable for band with removed panel"
 

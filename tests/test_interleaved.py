@@ -155,6 +155,7 @@ class TestBuildBandRenderables:
             changes=CHANGES,
             path_changes=PATH_CHANGES,
             console_width=160,
+            show_unchanged_panels=True,
         )
         assert isinstance(result[0], Table), (
             f"Expected first renderable to be a Table, got {type(result[0])}"

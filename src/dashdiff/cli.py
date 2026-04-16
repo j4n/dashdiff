@@ -264,6 +264,7 @@ def cmd_visual(args: argparse.Namespace) -> None:
             changes=changes,
             path_changes={},   # visual mode: no detail
             console_width=cw,
+            show_unchanged_panels=True,
         ):
             console.print(r)
 
@@ -374,6 +375,7 @@ def cmd_detail(args: argparse.Namespace) -> None:
             changes=changes_map,
             path_changes=path_changes,
             console_width=cw,
+            show_unchanged_panels=getattr(args, 'full', False),
         ):
             console.print(r)
 
@@ -472,6 +474,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_det.add_argument("before", help="Path to the 'before' dashboard JSON file")
     p_det.add_argument("after",  help="Path to the 'after' dashboard JSON file")
     p_det.add_argument("--strict", action="store_true", help="Preserve document order for set-like arrays")
+    p_det.add_argument("--full",   action="store_true", help="Include unchanged panels in the grid (default: show only changed panels)")
     p_det.set_defaults(func=cmd_detail)
 
     # -- gittool --

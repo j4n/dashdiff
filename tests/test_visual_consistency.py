@@ -278,6 +278,7 @@ class TestDetailBoxOrdering:
             changes=CHANGES_BOTH_CHANGED,
             path_changes=PATH_CHANGES_BOTH,
             console_width=160,
+            show_unchanged_panels=True,
         )
         buf = io.StringIO()
         console = Console(file=buf, no_color=True, width=160)
@@ -316,6 +317,7 @@ class TestDetailBoxOrdering:
             changes=changes,
             path_changes=path_changes,
             console_width=160,
+            show_unchanged_panels=True,
         )
         buf = io.StringIO()
         console = Console(file=buf, no_color=True, width=160)

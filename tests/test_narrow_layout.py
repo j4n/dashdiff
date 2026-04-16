@@ -118,6 +118,7 @@ class TestStackedGridBandRow:
             changes=CHANGES_QUERY,
             path_changes={},
             console_width=NARROW_WIDTH - 1,
+            show_unchanged_panels=True,
         )
         output = _render_all(renderables, width=NARROW_WIDTH - 1)
         assert "before" in output.lower()
@@ -130,6 +131,7 @@ class TestStackedGridBandRow:
             changes=CHANGES_QUERY,
             path_changes={},
             console_width=NARROW_WIDTH - 1,
+            show_unchanged_panels=True,
         )
         output = _render_all(renderables, width=NARROW_WIDTH - 1)
         assert "after" in output.lower()
@@ -143,6 +145,7 @@ class TestStackedGridBandRow:
             changes=CHANGES_QUERY,
             path_changes={},
             console_width=NARROW_WIDTH + 1,
+            show_unchanged_panels=True,
         )
         assert len(renderables) >= 1
         assert isinstance(renderables[0], Table)
@@ -158,6 +161,7 @@ class TestStackedGridBandRow:
             changes=CHANGES_QUERY,
             path_changes={},
             console_width=NARROW_WIDTH - 1,
+            show_unchanged_panels=True,
         )
         assert len(renderables) >= 1
         first = renderables[0]

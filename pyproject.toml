@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dashdiff"
-version = "0.1.18"
+version = "0.1.22"
 description = "Git diff helpers for Grafana dashboard JSON files"
 readme = "README.md"
 requires-python = ">=3.11"

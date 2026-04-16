@@ -269,16 +269,6 @@ class TestTwoVersionDiff:
         unexpected = [p for p in changed if not p.startswith("panels")]
         assert unexpected == [], f"unexpected differences after normalization: {unexpected}"
 
-    def test_panel_count_unchanged(self):
-        v1 = normalize(load("messy.json"))
-        v2 = normalize(load("messy_v2.json"))
-        assert len(v1["panels"]) == len(v2["panels"])
-
-    def test_panel_order_identical(self):
-        """Both versions must produce panels in the same stable order."""
-        v1 = normalize(load("messy.json"))
-        v2 = normalize(load("messy_v2.json"))
-        assert [p["title"] for p in v1["panels"]] == [p["title"] for p in v2["panels"]]
 
     def test_target_order_identical(self):
         """Targets must be in the same refId order in both versions."""

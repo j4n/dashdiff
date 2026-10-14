@@ -229,3 +229,26 @@ class TestGridDimensions:
         }
         result = extract_panels(dashboard)
         assert result[0].x + result[0].w <= 24
+
+
+# ---------------------------------------------------------------------------
+# render_grid
+# ---------------------------------------------------------------------------
+
+
+class TestRenderGrid:
+    def test_prints_panel_titles(self):
+        import io
+
+        from rich.console import Console
+
+        from dashdiff.grid import render_grid
+
+        panels = [
+            GridPanel("CPU Usage", "timeseries", 0, 0, 12, 8),
+            GridPanel("Memory", "stat", 12, 0, 12, 8),
+        ]
+        out = io.StringIO()
+        render_grid(panels, console=Console(file=out, width=160))
+        assert "CPU Usage" in out.getvalue()
+        assert "Memory" in out.getvalue()

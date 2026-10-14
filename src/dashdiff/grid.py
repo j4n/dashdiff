@@ -990,7 +990,7 @@ def render_grid(
         if cursor < GRID_COLUMNS:
             cells.append((GRID_COLUMNS - cursor, None))
 
-        unit_px = max(1, side_width // GRID_COLUMNS)
+        unit_px = max(1, console.width // GRID_COLUMNS)
         for w, _ in cells:
             band_table.add_column(ratio=w, min_width=w * unit_px)
 

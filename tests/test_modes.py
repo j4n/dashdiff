@@ -220,3 +220,58 @@ class TestTagsInTwoVersionDiff:
 
     def test_strict_exposes_tag_reorder(self):
         assert strict(self.V1)["tags"] != strict(self.V2)["tags"]
+
+
+# ---------------------------------------------------------------------------
+# Position- and name-sorted arrays: sorted in lenient, document order in strict
+# ---------------------------------------------------------------------------
+
+
+class TestSortedOnlyInLenient:
+    PANELS = [
+        {"title": "B", "type": "stat", "gridPos": {"x": 0, "y": 8}},
+        {"title": "A", "type": "stat", "gridPos": {"x": 0, "y": 0}},
+    ]
+
+    def test_lenient_sorts_panels_by_position(self):
+        result = lenient({"panels": self.PANELS})
+        assert [p["title"] for p in result["panels"]] == ["A", "B"]
+
+    def test_strict_preserves_panel_order(self):
+        result = strict({"panels": self.PANELS})
+        assert [p["title"] for p in result["panels"]] == ["B", "A"]
+
+    def test_strict_preserves_nested_panel_order(self):
+        row = {"title": "R", "type": "row", "panels": self.PANELS}
+        result = strict({"panels": [row]})
+        assert [p["title"] for p in result["panels"][0]["panels"]] == ["B", "A"]
+
+    TARGETS = [{"refId": "B", "expr": "b"}, {"refId": "A", "expr": "a"}]
+
+    def test_lenient_sorts_targets_by_ref_id(self):
+        panel = {"title": "P", "type": "stat", "targets": self.TARGETS}
+        result = lenient({"panels": [panel]})
+        assert [t["refId"] for t in result["panels"][0]["targets"]] == ["A", "B"]
+
+    def test_strict_preserves_target_order(self):
+        panel = {"title": "P", "type": "stat", "targets": self.TARGETS}
+        result = strict({"panels": [panel]})
+        assert [t["refId"] for t in result["panels"][0]["targets"]] == ["B", "A"]
+
+    NAMED = [{"name": "b"}, {"name": "a"}]
+
+    def test_lenient_sorts_templating_list(self):
+        result = lenient({"templating": {"list": self.NAMED}})
+        assert [v["name"] for v in result["templating"]["list"]] == ["a", "b"]
+
+    def test_strict_preserves_templating_list_order(self):
+        result = strict({"templating": {"list": self.NAMED}})
+        assert [v["name"] for v in result["templating"]["list"]] == ["b", "a"]
+
+    def test_lenient_sorts_annotations_list(self):
+        result = lenient({"annotations": {"list": self.NAMED}})
+        assert [a["name"] for a in result["annotations"]["list"]] == ["a", "b"]
+
+    def test_strict_preserves_annotations_list_order(self):
+        result = strict({"annotations": {"list": self.NAMED}})
+        assert [a["name"] for a in result["annotations"]["list"]] == ["b", "a"]

@@ -16,12 +16,14 @@ Strict (strict=True)
 Both modes
     - Strip ``id``, ``iteration``, ``version`` (pure save-counter noise).
     - Strip ``id`` from every panel (including nested row panels).
-    - Sort panels by ``(gridPos.y, gridPos.x, title)``.
-    - Sort panel ``targets`` by ``refId``.
-    - Sort ``templating.list`` and ``annotations.list`` by ``name``.
     - Recursively sort all JSON object keys alphabetically.
     - Never reorder ``transformations``, ``overrides``, or ``links``
       (pipeline / intentional ordering).
+
+Lenient mode only
+    - Sort panels by ``(gridPos.y, gridPos.x, title)``.
+    - Sort panel ``targets`` by ``refId``.
+    - Sort ``templating.list`` and ``annotations.list`` by ``name``.
 """
 
 from __future__ import annotations
@@ -92,17 +94,15 @@ def _normalize_panel(panel: dict[str, object], strict: bool) -> dict[str, object
     }
 
     # Recursively normalize nested panels (rows embed their children here).
-    # Nested panels are always sorted by position — same rule as top-level panels.
+    # Lenient mode sorts them by position, same as top-level panels.
     nested = p.get("panels")
     if isinstance(nested, list):
-        p["panels"] = sorted(
-            [_normalize_panel(child, strict) for child in nested],  # type: ignore[arg-type]
-            key=_panel_sort_key,
-        )
+        children = [_normalize_panel(child, strict) for child in nested]  # type: ignore[arg-type]
+        p["panels"] = children if strict else sorted(children, key=_panel_sort_key)
 
-    # targets: sorted by refId in both modes (refId is the stable identity)
+    # targets: lenient mode sorts by refId (the stable identity of a query)
     targets = p.get("targets")
-    if isinstance(targets, list):
+    if isinstance(targets, list) and not strict:
         p["targets"] = sorted(
             targets, key=lambda t: t.get("refId", "") if isinstance(t, dict) else ""
         )  # type: ignore[union-attr]
@@ -134,13 +134,13 @@ def normalize(dashboard: dict[str, object], strict: bool = False) -> dict[str, o
     Transformations applied in **both** modes:
     - Strip ``id``, ``iteration``, ``version`` from the top level.
     - Strip ``id`` from every panel (including nested panels inside rows).
+    - Recursively sort all JSON object keys alphabetically.
+
+    Transformations applied in **lenient** mode only:
     - Sort panels by ``(gridPos.y, gridPos.x, title)``.
     - Sort each panel's ``targets`` list by ``refId``.
     - Sort ``templating.list`` by variable ``name``.
     - Sort ``annotations.list`` by annotation ``name``.
-    - Recursively sort all JSON object keys alphabetically.
-
-    Additional transformations in **lenient** mode only:
     - Sort ``tags`` alphabetically.
     - Sort ``templating.list[*].options`` by ``value``.
     - Sort ``timepicker.refresh_intervals`` alphabetically.
@@ -155,30 +155,21 @@ def normalize(dashboard: dict[str, object], strict: bool = False) -> dict[str, o
         {k: v for k, v in dashboard.items() if k not in _STRIP_TOP_LEVEL}
     )
 
-    # --- panels (both modes: sort by position) ---
+    # --- panels (lenient only: sort by position) ---
     panels = d.get("panels")
     if isinstance(panels, list):
-        d["panels"] = sorted(
-            [_normalize_panel(p, strict) for p in panels],  # type: ignore[arg-type]
-            key=_panel_sort_key,
-        )
+        normalized = [_normalize_panel(p, strict) for p in panels]  # type: ignore[arg-type]
+        d["panels"] = normalized if strict else sorted(normalized, key=_panel_sort_key)
 
-    # --- templating.list (both modes: sort by name) ---
-    try:
-        templating = d["templating"]
-        assert isinstance(templating, dict)
-        templating["list"] = sorted(
-            templating["list"],  # type: ignore[arg-type]
-            key=lambda v: v.get("name", "") if isinstance(v, dict) else "",
-        )
-    except (KeyError, TypeError, AssertionError):
-        pass
-
-    # --- templating.list[*].options (lenient only: sort by value) ---
+    # --- templating.list (lenient only: sort by name, options by value) ---
     if not strict:
         try:
             templating = d["templating"]
             assert isinstance(templating, dict)
+            templating["list"] = sorted(
+                templating["list"],  # type: ignore[arg-type]
+                key=lambda v: v.get("name", "") if isinstance(v, dict) else "",
+            )
             for var in templating["list"]:  # type: ignore[union-attr]
                 if isinstance(var, dict) and isinstance(var.get("options"), list):
                     var["options"] = sorted(
@@ -188,16 +179,17 @@ def normalize(dashboard: dict[str, object], strict: bool = False) -> dict[str, o
         except (KeyError, TypeError, AssertionError):
             pass
 
-    # --- annotations.list (both modes: sort by name) ---
-    try:
-        annotations = d["annotations"]
-        assert isinstance(annotations, dict)
-        annotations["list"] = sorted(
-            annotations["list"],  # type: ignore[arg-type]
-            key=lambda a: a.get("name", "") if isinstance(a, dict) else "",
-        )
-    except (KeyError, TypeError, AssertionError):
-        pass
+    # --- annotations.list (lenient only: sort by name) ---
+    if not strict:
+        try:
+            annotations = d["annotations"]
+            assert isinstance(annotations, dict)
+            annotations["list"] = sorted(
+                annotations["list"],  # type: ignore[arg-type]
+                key=lambda a: a.get("name", "") if isinstance(a, dict) else "",
+            )
+        except (KeyError, TypeError, AssertionError):
+            pass
 
     # --- tags (lenient only: sort alphabetically) ---
     if not strict and isinstance(d.get("tags"), list):

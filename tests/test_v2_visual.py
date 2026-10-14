@@ -103,3 +103,41 @@ class TestDetail:
         out = run(tmp_path, capsys, "detail", two_rows(), after)
         assert out.index("Beta") < out.index("Disk")
         assert "data.spec.queries[0].spec.query.spec.expr" in out
+
+
+def tabs(*tab_specs):
+    """Unverified: tab field names are recalled from the schema, not from a real export."""
+    return {
+        "kind": "TabsLayout",
+        "spec": {
+            "tabs": [
+                {"kind": "TabsLayoutTab", "spec": {"title": t, "layout": layout}}
+                for t, layout in tab_specs
+            ]
+        },
+    }
+
+
+class TestTabsAndTopLevel:
+    def test_tab_title_heads_its_section(self, tmp_path, capsys):
+        d = v2_dashboard(
+            elements={"panel-1": element("CPU", "A")},
+            layout=tabs(("Overview", grid(grid_item("panel-1", 0, 0)))),
+        )
+        out = run(tmp_path, capsys, "visual", d)
+        assert out.index("Overview") < out.index("CPU")
+
+    def test_rows_nested_in_a_tab_join_the_path(self):
+        d = v2_dashboard(
+            elements={"panel-1": element("CPU")},
+            layout=tabs(("T", rows(("R", grid(grid_item("panel-1", 0, 0)))))),
+        )
+        assert [s.path for s in v2_sections(d)] == [("T", "R")]
+
+    def test_top_level_grid_is_one_untitled_section(self, tmp_path, capsys):
+        d = v2_dashboard(
+            elements={"panel-1": element("CPU", "A")},
+            layout=grid(grid_item("panel-1", 0, 0)),
+        )
+        assert [s.path for s in v2_sections(d)] == [()]
+        assert "(no row)" in run(tmp_path, capsys, "visual", d)

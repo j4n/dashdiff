@@ -164,11 +164,11 @@ dashdiff normalize --strict dashboard.json  # strict
 | Array                          | Lenient (default)                         | Strict                                    | Rationale                                                             |
 |--------------------------------|-------------------------------------------|-------------------------------------------|-----------------------------------------------------------------------|
 | `tags`                         | Sorted alphabetically                     | Document order                            | Grafana treats tags as a set; the UI sorts them for display anyway    |
-| `panels`                       | Sorted by `(gridPos.y, gridPos.x, title)` | Sorted by `(gridPos.y, gridPos.x, title)` | Visual position is encoded in `gridPos`, not array index              |
-| `panels[*].targets`            | Sorted by `refId`                         | Sorted by `refId`                         | `refId` is the stable identity of a query                             |
-| `templating.list`              | Sorted by `name`                          | Sorted by `name`                          | Variables are identified by name, not position                        |
+| `panels`                       | Sorted by `(gridPos.y, gridPos.x, title)` | Document order                            | Visual position is encoded in `gridPos`, not array index              |
+| `panels[*].targets`            | Sorted by `refId`                         | Document order                            | `refId` is the stable identity of a query                             |
+| `templating.list`              | Sorted by `name`                          | Document order                            | Variables are identified by name, not position                        |
 | `templating.list[*].options`   | Sorted by `value`                         | Document order                            | Cached option values are re-fetched on load; stored order is cosmetic |
-| `annotations.list`             | Sorted by `name`                          | Sorted by `name`                          | Identified by name                                                    |
+| `annotations.list`             | Sorted by `name`                          | Document order                            | Identified by name                                                    |
 | `timepicker.refresh_intervals` | Sorted alphabetically                     | Document order                            | Dropdown order is a UI preference with no functional effect           |
 | `timepicker.quick_ranges`      | Sorted by `display`                       | Document order                            | Same reasoning as `refresh_intervals`                                 |
 | `panels[*].transformations`    | Document order                            | Document order                            | **Pipeline** — reordering transformations changes the output          |

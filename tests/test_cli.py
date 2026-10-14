@@ -153,6 +153,22 @@ class TestVisual:
         assert out.index("Top") < out.index("Low")
 
 
+class TestDiff:
+    def test_noise_only_change_prints_nothing(self, tmp_path, capsys):
+        before = write(tmp_path / "b.json", [panel("A", 0, 0, id=1)], version=1)
+        after = write(tmp_path / "a.json", [panel("A", 0, 0, id=2)], version=2)
+        main(["diff", before, after])
+        assert capsys.readouterr().out == ""
+
+    def test_real_change_exits_one_and_shows_both_values(self, pair, capsys):
+        with pytest.raises(SystemExit) as exc:
+            main(["diff", *pair])
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert '-          "expr": "up"' in out and '+          "expr": "down"' in out
+        assert "version" not in out
+
+
 class TestGittool:
     def args(self, before, after):
         return ["gittool", "path", before, "h1", "100644", after, "h2", "100644"]

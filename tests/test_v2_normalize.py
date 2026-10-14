@@ -8,6 +8,7 @@ set-like lists, strict mode keeps document order, as in DESIGN.md.
 
 import copy
 
+import pytest
 from v2_helpers import auto_grid, element, grid, grid_item, rows, v2_dashboard
 
 from dashdiff.normalize import normalize
@@ -27,18 +28,18 @@ def strict(d):
 # ---------------------------------------------------------------------------
 
 
-class TestIsV2:
-    def test_envelope_is_v2(self):
-        assert is_v2(v2_dashboard())
-
-    def test_bare_spec_is_v2(self):
-        assert is_v2({"title": "T", "elements": {}, "layout": {"kind": "GridLayout"}})
-
-    def test_legacy_is_not_v2(self):
-        assert not is_v2({"title": "T", "panels": [], "schemaVersion": 39})
-
-    def test_v1_envelope_is_not_v2(self):
-        assert not is_v2({"apiVersion": "dashboard.grafana.app/v1", "spec": {}})
+@pytest.mark.parametrize(
+    ("dashboard", "expected"),
+    [
+        (v2_dashboard(), True),
+        ({"title": "T", "elements": {}, "layout": {"kind": "GridLayout"}}, True),
+        ({"title": "T", "panels": [], "schemaVersion": 39}, False),
+        ({"apiVersion": "dashboard.grafana.app/v1", "spec": {}}, False),
+    ],
+    ids=["envelope", "bare spec", "legacy", "v1 envelope"],
+)
+def test_is_v2(dashboard, expected):
+    assert is_v2(dashboard) is expected
 
 
 # ---------------------------------------------------------------------------
@@ -69,19 +70,13 @@ class TestMetadata:
         d["metadata"] = metadata
         return d
 
-    def test_strips_server_assigned_fields(self):
+    def test_strips_server_noise_and_keeps_the_rest(self):
         meta = lenient(self._with(self.NOISY))["metadata"]
-        for key in ("generation", "resourceVersion", "creationTimestamp", "uid"):
-            assert key not in meta
-        assert "managedFields" not in meta
-
-    def test_strips_noise_annotations_and_labels(self):
-        meta = strict(self._with(self.NOISY))["metadata"]
-        assert meta["annotations"] == {"grafana.app/folder": "folder-a"}
-        assert meta["labels"] == {"team": "ops"}
-
-    def test_keeps_name(self):
-        assert lenient(self._with(self.NOISY))["metadata"]["name"] == "uid-1"
+        assert meta == {
+            "name": "uid-1",
+            "labels": {"team": "ops"},
+            "annotations": {"grafana.app/folder": "folder-a"},
+        }
 
     def test_dashboards_differing_only_in_noise_normalize_equal(self):
         a = self._with(self.NOISY)
@@ -100,147 +95,111 @@ class TestMetadata:
         assert strict(d)["metadata"]["somethingNew"] == 1
 
 
-# ---------------------------------------------------------------------------
-# Sorting: lenient sorts set-like lists, strict keeps document order
-# ---------------------------------------------------------------------------
+def _item_names(items):
+    return [i["spec"]["element"]["name"] for i in items]
 
 
-class TestQueries:
-    def _dash(self):
-        return v2_dashboard(elements={"panel-1": element("P", "B", "A")})
-
-    def _ref_ids(self, result):
-        queries = result["spec"]["elements"]["panel-1"]["spec"]["data"]["spec"][
-            "queries"
-        ]
-        return [q["spec"]["refId"] for q in queries]
-
-    def test_lenient_sorts_queries_by_ref_id(self):
-        assert self._ref_ids(lenient(self._dash())) == ["A", "B"]
-
-    def test_strict_preserves_query_order(self):
-        assert self._ref_ids(strict(self._dash())) == ["B", "A"]
-
-
-class TestLayoutOrder:
-    def _names(self, items):
-        return [i["spec"]["element"]["name"] for i in items]
-
-    def _row_items(self, result, index=0):
-        row = result["spec"]["layout"]["spec"]["rows"][index]
-        return row["spec"]["layout"]["spec"]["items"]
-
-    def _dash(self, *row_specs):
-        return v2_dashboard(layout=rows(*row_specs))
-
-    def test_lenient_sorts_grid_items_by_position(self):
-        items = [grid_item("b", 0, 8), grid_item("c", 12, 0), grid_item("a", 0, 0)]
-        d = self._dash(("R", grid(*items)))
-        assert self._names(self._row_items(lenient(d))) == ["a", "c", "b"]
-
-    def test_strict_preserves_grid_item_order(self):
-        items = [grid_item("b", 0, 8), grid_item("c", 12, 0), grid_item("a", 0, 0)]
-        d = self._dash(("R", grid(*items)))
-        assert self._names(self._row_items(strict(d))) == ["b", "c", "a"]
-
-    def test_grid_item_ties_break_on_element_name(self):
-        d = self._dash(("R", grid(grid_item("z", 0, 0), grid_item("y", 0, 0))))
-        assert self._names(self._row_items(lenient(d))) == ["y", "z"]
-
-    def test_auto_grid_items_are_never_sorted(self):
-        d = self._dash(("R", auto_grid("b", "a")))
-        assert self._names(self._row_items(lenient(d))) == ["b", "a"]
-
-    def test_rows_are_never_sorted(self):
-        d = self._dash(("Z", grid()), ("A", grid()))
-        titles = [
-            r["spec"]["title"] for r in lenient(d)["spec"]["layout"]["spec"]["rows"]
-        ]
-        assert titles == ["Z", "A"]
-
-    def test_top_level_grid_items_are_sorted_too(self):
-        d = v2_dashboard(layout=grid(grid_item("b", 0, 8), grid_item("a", 0, 0)))
-        items = lenient(d)["spec"]["layout"]["spec"]["items"]
-        assert self._names(items) == ["a", "b"]
-
-    def test_grid_layout_row_children_are_sorted(self):
-        row = {
-            "kind": "GridLayoutRow",
-            "spec": {
-                "title": "R",
-                "y": 0,
-                "elements": [grid_item("b", 0, 8), grid_item("a", 0, 0)],
-            },
-        }
-        d = v2_dashboard(layout=grid(row))
-        children = lenient(d)["spec"]["layout"]["spec"]["items"][0]["spec"]["elements"]
-        assert self._names(children) == ["a", "b"]
-
-
-class TestVariablesAnnotationsTags:
-    VARS = [
-        {"kind": "CustomVariable", "spec": {"name": "b", "options": [
-            {"text": "z", "value": "z"}, {"text": "a", "value": "a"}]}},
-        {"kind": "QueryVariable", "spec": {"name": "a"}},
-    ]  # fmt: skip
-    ANNOTATIONS = [
-        {"kind": "AnnotationQuery", "spec": {"name": "b"}},
-        {"kind": "AnnotationQuery", "spec": {"name": "a"}},
+def _row_items(result):
+    return result["spec"]["layout"]["spec"]["rows"][0]["spec"]["layout"]["spec"][
+        "items"
     ]
 
-    def test_lenient_sorts_variables_by_name(self):
-        out = lenient(v2_dashboard(variables=self.VARS))
-        assert [v["spec"]["name"] for v in out["spec"]["variables"]] == ["a", "b"]
 
-    def test_strict_preserves_variable_order(self):
-        out = strict(v2_dashboard(variables=self.VARS))
-        assert [v["spec"]["name"] for v in out["spec"]["variables"]] == ["b", "a"]
-
-    def test_lenient_sorts_variable_options_by_value(self):
-        out = lenient(v2_dashboard(variables=self.VARS))
-        custom = next(v for v in out["spec"]["variables"] if v["spec"]["name"] == "b")
-        assert [o["value"] for o in custom["spec"]["options"]] == ["a", "z"]
-
-    def test_strict_preserves_variable_option_order(self):
-        out = strict(v2_dashboard(variables=self.VARS))
-        custom = next(v for v in out["spec"]["variables"] if v["spec"]["name"] == "b")
-        assert [o["value"] for o in custom["spec"]["options"]] == ["z", "a"]
-
-    def test_lenient_sorts_annotations_by_name(self):
-        out = lenient(v2_dashboard(annotations=self.ANNOTATIONS))
-        assert [a["spec"]["name"] for a in out["spec"]["annotations"]] == ["a", "b"]
-
-    def test_strict_preserves_annotation_order(self):
-        out = strict(v2_dashboard(annotations=self.ANNOTATIONS))
-        assert [a["spec"]["name"] for a in out["spec"]["annotations"]] == ["b", "a"]
-
-    def test_lenient_sorts_tags(self):
-        assert lenient(v2_dashboard(tags=["b", "a"]))["spec"]["tags"] == ["a", "b"]
-
-    def test_strict_preserves_tag_order(self):
-        assert strict(v2_dashboard(tags=["b", "a"]))["spec"]["tags"] == ["b", "a"]
+def _queries(result):
+    return result["spec"]["elements"]["panel-1"]["spec"]["data"]["spec"]["queries"]
 
 
-class TestOrderSignificant:
-    def test_transformations_keep_order_in_both_modes(self):
-        el = element("P", "A")
-        el["spec"]["data"]["spec"]["transformations"] = [{"id": "merge"}, {"id": "a"}]
-        for mode in (lenient, strict):
-            out = mode(v2_dashboard(elements={"panel-1": el}))
-            transformations = out["spec"]["elements"]["panel-1"]["spec"]["data"][
-                "spec"
-            ]["transformations"]
-            assert [t["id"] for t in transformations] == ["merge", "a"]
+def _grid_row_children(result):
+    return result["spec"]["layout"]["spec"]["items"][0]["spec"]["elements"]
 
 
-class TestNulls:
-    def test_lenient_strips_null_keys(self):
-        out = lenient(v2_dashboard(description=None))
-        assert "description" not in out["spec"]
+def _custom_options(result):
+    custom = next(v for v in result["spec"]["variables"] if v["spec"]["name"] == "b")
+    return [o["value"] for o in custom["spec"]["options"]]
 
-    def test_strict_preserves_null_keys(self):
-        out = strict(v2_dashboard(description=None))
-        assert out["spec"]["description"] is None
+
+def _spec_names(key):
+    return lambda result: [i["spec"]["name"] for i in result["spec"][key]]
+
+
+GRID_ITEMS = [grid_item("b", 0, 8), grid_item("c", 12, 0), grid_item("a", 0, 0)]
+VARS = [
+    {"kind": "CustomVariable", "spec": {"name": "b", "options": [
+        {"text": "z", "value": "z"}, {"text": "a", "value": "a"}]}},
+    {"kind": "QueryVariable", "spec": {"name": "a"}},
+]  # fmt: skip
+ANNOTATIONS = [
+    {"kind": "AnnotationQuery", "spec": {"name": "b"}},
+    {"kind": "AnnotationQuery", "spec": {"name": "a"}},
+]
+GRID_ROW = {
+    "kind": "GridLayoutRow",
+    "spec": {
+        "title": "R",
+        "y": 0,
+        "elements": [grid_item("b", 0, 8), grid_item("a", 0, 0)],
+    },
+}
+
+# (id, dashboard, how to read the result, lenient order, strict order)
+LENIENT_SORTS = [
+    ("queries by refId", v2_dashboard(elements={"panel-1": element("P", "B", "A")}),
+     lambda r: [q["spec"]["refId"] for q in _queries(r)], ["A", "B"], ["B", "A"]),
+    ("grid items by position", v2_dashboard(layout=rows(("R", grid(*GRID_ITEMS)))),
+     lambda r: _item_names(_row_items(r)), ["a", "c", "b"], ["b", "c", "a"]),
+    ("grid item ties by element name",
+     v2_dashboard(layout=rows(("R", grid(grid_item("z", 0, 0), grid_item("y", 0, 0))))),
+     lambda r: _item_names(_row_items(r)), ["y", "z"], ["z", "y"]),
+    ("top-level grid items", v2_dashboard(layout=grid(grid_item("b", 0, 8), grid_item("a", 0, 0))),
+     lambda r: _item_names(r["spec"]["layout"]["spec"]["items"]), ["a", "b"], ["b", "a"]),
+    ("grid layout row children", v2_dashboard(layout=grid(GRID_ROW)),
+     lambda r: _item_names(_grid_row_children(r)), ["a", "b"], ["b", "a"]),
+    ("variables by name", v2_dashboard(variables=VARS), _spec_names("variables"), ["a", "b"], ["b", "a"]),
+    ("variable options by value", v2_dashboard(variables=VARS), _custom_options, ["a", "z"], ["z", "a"]),
+    ("annotations by name", v2_dashboard(annotations=ANNOTATIONS), _spec_names("annotations"), ["a", "b"], ["b", "a"]),
+    ("tags", v2_dashboard(tags=["b", "a"]), lambda r: r["spec"]["tags"], ["a", "b"], ["b", "a"]),
+]  # fmt: skip
+
+TRANSFORMED = element("P", "A")
+TRANSFORMED["spec"]["data"]["spec"]["transformations"] = [{"id": "merge"}, {"id": "a"}]
+
+NEVER_SORTED = [
+    ("auto grid items", v2_dashboard(layout=rows(("R", auto_grid("b", "a")))),
+     lambda r: _item_names(_row_items(r)), ["b", "a"]),
+    ("rows", v2_dashboard(layout=rows(("Z", grid()), ("A", grid()))),
+     lambda r: [x["spec"]["title"] for x in r["spec"]["layout"]["spec"]["rows"]], ["Z", "A"]),
+    ("transformations", v2_dashboard(elements={"panel-1": TRANSFORMED}),
+     lambda r: [t["id"] for t in r["spec"]["elements"]["panel-1"]["spec"]["data"]["spec"]["transformations"]],
+     ["merge", "a"]),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("dashboard", "read", "lenient_order", "strict_order"),
+    [row[1:] for row in LENIENT_SORTS],
+    ids=[row[0] for row in LENIENT_SORTS],
+)
+def test_lenient_sorts_and_strict_keeps_document_order(
+    dashboard, read, lenient_order, strict_order
+):
+    assert read(lenient(dashboard)) == lenient_order
+    assert read(strict(dashboard)) == strict_order
+
+
+@pytest.mark.parametrize(
+    ("dashboard", "read", "expected"),
+    [row[1:] for row in NEVER_SORTED],
+    ids=[row[0] for row in NEVER_SORTED],
+)
+def test_order_significant_lists_keep_document_order(dashboard, read, expected):
+    assert read(lenient(dashboard)) == expected
+    assert read(strict(dashboard)) == expected
+
+
+def test_lenient_strips_null_keys_and_strict_keeps_them():
+    dashboard = v2_dashboard(description=None)
+    assert "description" not in lenient(dashboard)["spec"]
+    assert strict(dashboard)["spec"]["description"] is None
 
 
 # ---------------------------------------------------------------------------

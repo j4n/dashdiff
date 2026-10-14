@@ -27,7 +27,7 @@ This places a single `dashdiff` executable on your `$PATH`.
 dashdiff normalize (n)   Normalise a dashboard file → stdout
 dashdiff diff      (d)   Unified text diff of two normalised files
 dashdiff visual    (v)   Rich terminal box-model grid visualiser
-dashdiff detail    (t)   Grid visualiser interleaved with per-panel change details
+dashdiff detail    (x)   Grid visualiser interleaved with per-panel change details
 dashdiff gittool   (g)   GIT_EXTERNAL_DIFF adapter (not for direct use)
 ```
 

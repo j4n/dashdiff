@@ -8,6 +8,8 @@ set-like lists, strict mode keeps document order, as in DESIGN.md.
 
 import copy
 
+from v2_helpers import auto_grid, element, grid, grid_item, rows, v2_dashboard
+
 from dashdiff.normalize import normalize
 from dashdiff.v2 import is_v2
 
@@ -18,16 +20,6 @@ def lenient(d):
 
 def strict(d):
     return normalize(d, strict=True)
-
-
-def v2_dashboard(**spec):
-    """Build a minimal v2 envelope; *spec* keys override the spec defaults."""
-    return {
-        "apiVersion": "dashboard.grafana.app/v2",
-        "kind": "Dashboard",
-        "metadata": {"name": "uid-1"},
-        "spec": {"title": "T", "elements": {}, "layout": {}, **spec},
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -111,54 +103,6 @@ class TestMetadata:
 # ---------------------------------------------------------------------------
 # Sorting: lenient sorts set-like lists, strict keeps document order
 # ---------------------------------------------------------------------------
-
-
-def ref(name):
-    return {"kind": "ElementReference", "name": name}
-
-
-def grid_item(name, x, y):
-    return {
-        "kind": "GridLayoutItem",
-        "spec": {"x": x, "y": y, "width": 12, "height": 4, "element": ref(name)},
-    }
-
-
-def grid(*items):
-    return {"kind": "GridLayout", "spec": {"items": list(items)}}
-
-
-def auto_grid(*names):
-    items = [{"kind": "AutoGridLayoutItem", "spec": {"element": ref(n)}} for n in names]
-    return {"kind": "AutoGridLayout", "spec": {"maxColumnCount": 1, "items": items}}
-
-
-def rows(*row_specs):
-    """Each row spec is (title, layout)."""
-    return {
-        "kind": "RowsLayout",
-        "spec": {
-            "rows": [
-                {"kind": "RowsLayoutRow", "spec": {"title": t, "layout": layout}}
-                for t, layout in row_specs
-            ]
-        },
-    }
-
-
-def element(title, *ref_ids):
-    queries = [
-        {"kind": "PanelQuery", "spec": {"refId": r, "query": {"spec": {"expr": r}}}}
-        for r in ref_ids
-    ]
-    return {
-        "kind": "Panel",
-        "spec": {
-            "title": title,
-            "vizConfig": {"kind": "timeseries", "spec": {}},
-            "data": {"kind": "QueryGroup", "spec": {"queries": queries}},
-        },
-    }
 
 
 class TestQueries:
@@ -297,3 +241,42 @@ class TestNulls:
     def test_strict_preserves_null_keys(self):
         out = strict(v2_dashboard(description=None))
         assert out["spec"]["description"] is None
+
+
+# ---------------------------------------------------------------------------
+# export-label noise anywhere in the tree
+# ---------------------------------------------------------------------------
+
+
+class TestExportLabel:
+    def _with_query_labels(self, labels):
+        el = element("P", "A")
+        query = el["spec"]["data"]["spec"]["queries"][0]["spec"]["query"]
+        query["kind"] = "DataQuery"
+        if labels is not None:
+            query["labels"] = labels
+        return v2_dashboard(elements={"panel-1": el})
+
+    def _query(self, result):
+        queries = result["spec"]["elements"]["panel-1"]["spec"]["data"]["spec"][
+            "queries"
+        ]
+        return queries[0]["spec"]["query"]
+
+    def test_strips_export_label_from_nested_query(self):
+        d = self._with_query_labels({"grafana.app/export-label": "grafana-1"})
+        for mode in (lenient, strict):
+            assert "labels" not in self._query(mode(d))
+
+    def test_label_only_dashboard_equals_one_without_labels(self):
+        a = self._with_query_labels({"grafana.app/export-label": "grafana-1"})
+        b = self._with_query_labels(None)
+        assert strict(a) == strict(b)
+
+    def test_keeps_other_labels(self):
+        d = self._with_query_labels({"grafana.app/export-label": "g", "team": "ops"})
+        assert self._query(strict(d))["labels"] == {"team": "ops"}
+
+    def test_empty_labels_not_created_by_us_are_kept(self):
+        d = self._with_query_labels({})
+        assert self._query(strict(d))["labels"] == {}

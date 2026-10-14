@@ -153,6 +153,29 @@ def _normalize_v2_metadata(metadata: dict[str, object]) -> dict[str, object]:
     return out
 
 
+def _strip_export_labels(obj: object) -> object:
+    """Remove the exporter's label from every ``labels`` map in the tree.
+
+    The label names the instance that wrote the file, so it differs between
+    exports of the same dashboard.  A map is dropped only if the strip emptied
+    it; a ``labels`` map that was already empty stays as it was.
+    """
+    if isinstance(obj, list):
+        return [_strip_export_labels(item) for item in obj]
+    if not isinstance(obj, dict):
+        return obj
+    out: dict[str, object] = {}
+    for key, raw in obj.items():
+        value = _strip_export_labels(raw)
+        if key == "labels" and isinstance(value, dict):
+            kept = {k: v for k, v in value.items() if k not in _STRIP_V2_LABELS}
+            if value and not kept:
+                continue
+            value = kept
+        out[key] = value
+    return out
+
+
 def _sort_by_spec_field(items: object, field: str) -> object:
     """Sort a list of ``{kind, spec}`` nodes by ``spec[field]``."""
     if not isinstance(items, list):
@@ -226,7 +249,7 @@ def _sort_v2_spec(spec: dict[str, object]) -> None:
 
 
 def _normalize_v2(dashboard: dict[str, object], strict: bool) -> dict[str, object]:
-    d: dict[str, object] = copy.deepcopy(dashboard)
+    d: dict[str, object] = _strip_export_labels(copy.deepcopy(dashboard))  # type: ignore[assignment]
 
     metadata = d.get("metadata")
     if isinstance(metadata, dict):

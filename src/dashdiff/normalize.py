@@ -31,7 +31,7 @@ from __future__ import annotations
 import copy
 from typing import Final
 
-from dashdiff.v2 import is_v2
+from dashdiff.v2 import is_v2, node_spec, spec_of
 
 # ---------------------------------------------------------------------------
 # Fields stripped in both modes — they change on every save, carry no meaning
@@ -153,12 +153,87 @@ def _normalize_v2_metadata(metadata: dict[str, object]) -> dict[str, object]:
     return out
 
 
+def _sort_by_spec_field(items: object, field: str) -> object:
+    """Sort a list of ``{kind, spec}`` nodes by ``spec[field]``."""
+    if not isinstance(items, list):
+        return items
+    return sorted(items, key=lambda i: str(node_spec(i).get(field, "")))
+
+
+def _grid_item_key(item: object) -> tuple[int, int, str]:
+    """Position key for a GridLayout child: an item, or a GridLayoutRow."""
+    spec = node_spec(item)
+    element = spec.get("element")
+    name = element.get("name") if isinstance(element, dict) else spec.get("title")
+    return (
+        int(spec.get("y", 0)),  # type: ignore[call-overload]
+        int(spec.get("x", 0)),  # type: ignore[call-overload]
+        str(name or ""),
+    )
+
+
+def _sort_v2_layout(node: object) -> None:
+    """Sort GridLayout children by position, in place.
+
+    Rows, tabs and AutoGridLayout items are left alone because their order is
+    the layout.
+    """
+    if not isinstance(node, dict):
+        return
+    spec = node_spec(node)
+    for key in ("rows", "tabs", "items", "elements"):
+        children = spec.get(key)
+        if isinstance(children, list):
+            for child in children:
+                _sort_v2_layout(child)
+    _sort_v2_layout(spec.get("layout"))
+
+    kind = node.get("kind")
+    if kind == "GridLayout" and isinstance(spec.get("items"), list):
+        spec["items"] = sorted(spec["items"], key=_grid_item_key)  # type: ignore[call-overload]
+    elif kind == "GridLayoutRow" and isinstance(spec.get("elements"), list):
+        spec["elements"] = sorted(spec["elements"], key=_grid_item_key)  # type: ignore[call-overload]
+
+
+def _sort_v2_spec(spec: dict[str, object]) -> None:
+    """Lenient-mode sorting of the set-like lists in a v2 spec, in place."""
+    elements = spec.get("elements")
+    if isinstance(elements, dict):
+        for element in elements.values():
+            data = node_spec(node_spec(element).get("data"))
+            if isinstance(data.get("queries"), list):
+                data["queries"] = _sort_by_spec_field(data["queries"], "refId")
+
+    _sort_v2_layout(spec.get("layout"))
+
+    variables = spec.get("variables")
+    if isinstance(variables, list):
+        for var in variables:
+            var_spec = node_spec(var)
+            if isinstance(var_spec.get("options"), list):
+                var_spec["options"] = sorted(
+                    var_spec["options"],
+                    key=lambda o: (
+                        str(o.get("value", "")) if isinstance(o, dict) else ""
+                    ),
+                )
+        spec["variables"] = _sort_by_spec_field(variables, "name")
+
+    if "annotations" in spec:
+        spec["annotations"] = _sort_by_spec_field(spec["annotations"], "name")
+    if isinstance(spec.get("tags"), list):
+        spec["tags"] = sorted(spec["tags"])  # type: ignore[type-var]
+
+
 def _normalize_v2(dashboard: dict[str, object], strict: bool) -> dict[str, object]:
     d: dict[str, object] = copy.deepcopy(dashboard)
 
     metadata = d.get("metadata")
     if isinstance(metadata, dict):
         d["metadata"] = _normalize_v2_metadata(metadata)
+
+    if not strict:
+        _sort_v2_spec(spec_of(d))
 
     result = _sort_keys(d)
     if not strict:

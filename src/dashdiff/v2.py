@@ -21,6 +21,12 @@ def spec_of(dashboard: dict[str, object]) -> dict[str, object]:
     return spec if isinstance(spec, dict) else dashboard
 
 
+def node_spec(node: object) -> dict[str, object]:
+    """Return the ``spec`` of a v2 node, or an empty dict if it has none."""
+    spec = node.get("spec") if isinstance(node, dict) else None
+    return spec if isinstance(spec, dict) else {}
+
+
 def is_v2(dashboard: dict[str, object]) -> bool:
     """Return True if *dashboard* is a v2 envelope or a bare v2 spec."""
     api_version = dashboard.get("apiVersion")

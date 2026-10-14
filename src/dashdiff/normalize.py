@@ -31,12 +31,30 @@ from __future__ import annotations
 import copy
 from typing import Final
 
+from dashdiff.v2 import is_v2
+
 # ---------------------------------------------------------------------------
 # Fields stripped in both modes — they change on every save, carry no meaning
 # ---------------------------------------------------------------------------
 
 _STRIP_TOP_LEVEL: Final[frozenset[str]] = frozenset({"id", "iteration", "version"})
 _STRIP_PANEL_FIELDS: Final[frozenset[str]] = frozenset({"id"})
+
+# v2 metadata the server assigns on every save or export.  Anything not listed
+# here stays in the output, so a new field shows up in the diff instead of
+# being hidden.
+_STRIP_V2_METADATA: Final[frozenset[str]] = frozenset(
+    {"generation", "resourceVersion", "creationTimestamp", "uid", "managedFields"}
+)
+_STRIP_V2_ANNOTATIONS: Final[frozenset[str]] = frozenset(
+    {
+        "grafana.app/updatedTimestamp",
+        "grafana.app/updatedBy",
+        "grafana.app/createdBy",
+        "grafana.app/message",
+    }
+)
+_STRIP_V2_LABELS: Final[frozenset[str]] = frozenset({"grafana.app/export-label"})
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +136,36 @@ def _normalize_panel(panel: dict[str, object], strict: bool) -> dict[str, object
 # ---------------------------------------------------------------------------
 
 
+def _normalize_v2_metadata(metadata: dict[str, object]) -> dict[str, object]:
+    out = {k: v for k, v in metadata.items() if k not in _STRIP_V2_METADATA}
+    for key, noise in (
+        ("annotations", _STRIP_V2_ANNOTATIONS),
+        ("labels", _STRIP_V2_LABELS),
+    ):
+        value = out.get(key)
+        if isinstance(value, dict):
+            kept = {k: v for k, v in value.items() if k not in noise}
+            # An empty map and an absent key mean the same to the API server.
+            if kept:
+                out[key] = kept
+            else:
+                del out[key]
+    return out
+
+
+def _normalize_v2(dashboard: dict[str, object], strict: bool) -> dict[str, object]:
+    d: dict[str, object] = copy.deepcopy(dashboard)
+
+    metadata = d.get("metadata")
+    if isinstance(metadata, dict):
+        d["metadata"] = _normalize_v2_metadata(metadata)
+
+    result = _sort_keys(d)
+    if not strict:
+        result = _strip_nulls(result)
+    return result  # type: ignore[return-value]
+
+
 def normalize(dashboard: dict[str, object], strict: bool = False) -> dict[str, object]:
     """
     Return a normalised copy of *dashboard*.
@@ -151,6 +199,9 @@ def normalize(dashboard: dict[str, object], strict: bool = False) -> dict[str, o
       Strict mode preserves nulls so auditors can inspect the raw stored
       JSON.
     """
+    if is_v2(dashboard):
+        return _normalize_v2(dashboard, strict)
+
     d: dict[str, object] = copy.deepcopy(
         {k: v for k, v in dashboard.items() if k not in _STRIP_TOP_LEVEL}
     )

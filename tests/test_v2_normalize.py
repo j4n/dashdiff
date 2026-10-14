@@ -196,6 +196,18 @@ def test_order_significant_lists_keep_document_order(dashboard, read, expected):
     assert read(strict(dashboard)) == expected
 
 
+@pytest.mark.parametrize("key", ["variables", "annotations", "tags"])
+def test_malformed_lists_pass_through_unsorted(key):
+    dashboard = v2_dashboard(**{key: {"not": "a list"}})
+    assert lenient(dashboard)["spec"][key] == {"not": "a list"}
+
+
+def test_annotations_holding_only_noise_equal_absent_annotations():
+    noisy = v2_dashboard()
+    noisy["metadata"]["annotations"] = {"grafana.app/updatedBy": "user:1"}
+    assert strict(noisy) == strict(v2_dashboard())
+
+
 def test_lenient_strips_null_keys_and_strict_keeps_them():
     dashboard = v2_dashboard(description=None)
     assert "description" not in lenient(dashboard)["spec"]

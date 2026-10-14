@@ -12,28 +12,26 @@ Tests cover:
 from __future__ import annotations
 
 import io
-import re
 
 import pytest
 from rich.console import Console
 from rich.text import Text
 
+from dashdiff.diff_paths import MISSING, PathChange
 from dashdiff.grid import (
-    PanelChange,
+    _CHANGE_COLOURS,  # internal — used to assert legend derives from it
+    _LEGEND_ENTRIES,  # internal — used to inspect swatch styles
     GridPanel,
-    change_border_style,
-    build_legend_renderable,
+    PanelChange,
     build_band_renderables,
     build_grid_renderables,
-    _CHANGE_COLOURS,   # internal — used to assert legend derives from it
-    _LEGEND_ENTRIES,   # internal — used to inspect swatch styles
+    build_legend_renderable,
 )
-from dashdiff.diff_paths import PathChange, MISSING
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _render(renderable, width: int = 160) -> str:
     """Render a Rich renderable to a plain string (no ANSI, no colour)."""
@@ -60,6 +58,7 @@ def _render_markup(renderable, width: int = 160) -> str:
 # Fix 1 — Legend swatch colours must match _CHANGE_COLOURS
 # ---------------------------------------------------------------------------
 
+
 class TestLegendColourConsistency:
     def test_legend_entries_derive_from_change_colours(self):
         """
@@ -75,7 +74,9 @@ class TestLegendColourConsistency:
                 f"but _CHANGE_COLOURS says {expected!r}"
             )
 
-    @pytest.mark.parametrize("label", ["added", "removed", "query", "layout", "config", "unchanged"])
+    @pytest.mark.parametrize(
+        "label", ["added", "removed", "query", "layout", "config", "unchanged"]
+    )
     def test_legend_contains_all_labels(self, label):
         """The rendered legend must contain all six change-kind labels."""
         buf = io.StringIO()
@@ -85,12 +86,18 @@ class TestLegendColourConsistency:
     def test_legend_before_first_band(self):
         """The legend renderable must appear before the first band Table."""
         from rich.table import Table
+
         panels = [
             GridPanel("CPU", "timeseries", x=0, y=0, w=12, h=8),
-            GridPanel("RAM", "stat",       x=12, y=0, w=12, h=8),
+            GridPanel("RAM", "stat", x=12, y=0, w=12, h=8),
         ]
-        changes = {"CPU": frozenset({PanelChange.ADDED}), "RAM": frozenset({PanelChange.UNCHANGED})}
-        renderables = build_grid_renderables(panels, title="T", changes=changes, console_width=160)
+        changes = {
+            "CPU": frozenset({PanelChange.ADDED}),
+            "RAM": frozenset({PanelChange.UNCHANGED}),
+        }
+        renderables = build_grid_renderables(
+            panels, title="T", changes=changes, console_width=160
+        )
         legend_idx = None
         first_table_idx = None
         for i, r in enumerate(renderables):
@@ -112,19 +119,19 @@ class TestLegendColourConsistency:
 
 # Short human-readable badge text for each change kind
 _BADGE_TEXT: dict[PanelChange, str] = {
-    PanelChange.ADDED:           "+added",
-    PanelChange.REMOVED:         "-removed",
-    PanelChange.MODIFIED_QUERY:  "~query",
+    PanelChange.ADDED: "+added",
+    PanelChange.REMOVED: "-removed",
+    PanelChange.MODIFIED_QUERY: "~query",
     PanelChange.MODIFIED_LAYOUT: "~layout",
     PanelChange.MODIFIED_CONFIG: "~config",
 }
 
-PANEL_A = GridPanel("Alpha", "timeseries", x=0,  y=0, w=12, h=8)
-PANEL_B = GridPanel("Beta",  "timeseries", x=12, y=0, w=12, h=8)
+PANEL_A = GridPanel("Alpha", "timeseries", x=0, y=0, w=12, h=8)
+PANEL_B = GridPanel("Beta", "timeseries", x=12, y=0, w=12, h=8)
 
 CHANGES_QUERY = {
     "Alpha": frozenset({PanelChange.MODIFIED_QUERY}),
-    "Beta":  frozenset({PanelChange.UNCHANGED}),
+    "Beta": frozenset({PanelChange.UNCHANGED}),
 }
 
 PATH_CHANGES_ALPHA: dict[str, list] = {
@@ -134,7 +141,7 @@ PATH_CHANGES_ALPHA: dict[str, list] = {
 
 def _band_text(changes, path_changes, before=None, after=None) -> str:
     before = before or [PANEL_A, PANEL_B]
-    after  = after  or [PANEL_A, PANEL_B]
+    after = after or [PANEL_A, PANEL_B]
     renderables = build_band_renderables(
         y_band=0,
         before_panels=before,
@@ -180,7 +187,9 @@ class TestDetailHeaderBadge:
     def test_config_badge_in_header(self):
         """Detail box for a ~config change must include '~config' in its title."""
         changes = {"Alpha": frozenset({PanelChange.MODIFIED_CONFIG})}
-        path_changes = {"Alpha": [PathChange("options.legend.displayMode", "list", "table")]}
+        path_changes = {
+            "Alpha": [PathChange("options.legend.displayMode", "list", "table")]
+        }
         text = _band_text(changes, path_changes)
         assert "~config" in text, (
             f"Expected '~config' badge in detail box header, got:\n{text}"
@@ -211,17 +220,17 @@ class TestDetailHeaderBadge:
 # Alphabetically Alpha < Zeta, so if sorted by name Zeta would come second.
 # By x position Zeta (x=0) must come FIRST.
 
-PANEL_ZETA  = GridPanel("Zeta",  "timeseries", x=0,  y=0, w=12, h=8)
+PANEL_ZETA = GridPanel("Zeta", "timeseries", x=0, y=0, w=12, h=8)
 PANEL_ALPHA = GridPanel("Alpha", "timeseries", x=12, y=0, w=12, h=8)
 
 CHANGES_BOTH_CHANGED = {
-    "Zeta":  frozenset({PanelChange.MODIFIED_QUERY}),
+    "Zeta": frozenset({PanelChange.MODIFIED_QUERY}),
     "Alpha": frozenset({PanelChange.MODIFIED_CONFIG}),
 }
 
 PATH_CHANGES_BOTH: dict[str, list] = {
-    "Zeta":  [PathChange("targets[0].expr", "old_z", "new_z")],
-    "Alpha": [PathChange("options.legend",  "list",  "table")],
+    "Zeta": [PathChange("targets[0].expr", "old_z", "new_z")],
+    "Alpha": [PathChange("options.legend", "list", "table")],
 }
 
 
@@ -245,15 +254,15 @@ class TestDetailBoxOrdering:
             console.print(r)
         text = buf.getvalue()
 
-        zeta_pos  = text.find("Zeta")
+        zeta_pos = text.find("Zeta")
         alpha_pos = text.find("Alpha")
-        assert zeta_pos  != -1, "Expected 'Zeta' in output"
+        assert zeta_pos != -1, "Expected 'Zeta' in output"
         assert alpha_pos != -1, "Expected 'Alpha' in output"
 
         # Find positions in the *detail section* specifically (after the grid row)
         # The grid row also contains both names, so we look for the second occurrence
         # of each name (which is in the detail box header)
-        zeta_detail_pos  = text.find("Zeta",  zeta_pos  + 1)
+        zeta_detail_pos = text.find("Zeta", zeta_pos + 1)
         alpha_detail_pos = text.find("Alpha", alpha_pos + 1)
 
         if zeta_detail_pos == -1:
@@ -286,9 +295,9 @@ class TestDetailBoxOrdering:
             console.print(r)
         text = buf.getvalue()
 
-        zeta_pos  = text.find("Zeta")
+        zeta_pos = text.find("Zeta")
         alpha_pos = text.find("Alpha")
-        assert zeta_pos  != -1, "Expected 'Zeta' in detail output"
+        assert zeta_pos != -1, "Expected 'Zeta' in detail output"
         assert alpha_pos != -1, "Expected 'Alpha' in detail output"
         assert zeta_pos < alpha_pos, (
             f"Zeta (x=0) must appear before Alpha (x=12) in detail section. "
@@ -312,7 +321,7 @@ class TestDetailBoxOrdering:
         }
         renderables = build_band_renderables(
             y_band=0,
-            before_panels=[panel_old],          # NewPanel absent in before
+            before_panels=[panel_old],  # NewPanel absent in before
             after_panels=[panel_new, panel_old],
             changes=changes,
             path_changes=path_changes,

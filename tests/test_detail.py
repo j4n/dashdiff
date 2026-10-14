@@ -14,15 +14,7 @@ noise is excluded.
 
 from __future__ import annotations
 
-import json
-import sys
-from io import StringIO
-from pathlib import Path
-
-import pytest
-
 from dashdiff.cli import detail_panel_changes
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -92,7 +84,12 @@ AFTER_PANEL_ADDED = {
             "title": "Latency",
             "type": "timeseries",
             "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
-            "targets": [{"refId": "A", "expr": "histogram_quantile(0.99, rate(latency_bucket[5m]))"}],
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.99, rate(latency_bucket[5m]))",
+                }
+            ],
         },
     ],
 }
@@ -113,6 +110,7 @@ IDENTICAL = {
 # ---------------------------------------------------------------------------
 # detail_panel_changes()
 # ---------------------------------------------------------------------------
+
 
 class TestDetailPanelChangesNoChange:
     def test_identical_dashboards_empty_result(self):
@@ -140,7 +138,6 @@ class TestDetailPanelChangesQueryChange:
 
     def test_before_value_is_old_expr(self):
         result = detail_panel_changes(BEFORE, AFTER_QUERY_CHANGE)
-        changes = {pc.path: pc for pc in result["Error Rate"]}
         expr_change = next(pc for pc in result["Error Rate"] if "expr" in pc.path)
         assert "5m" in str(expr_change.before)
 
@@ -164,16 +161,32 @@ class TestDetailPanelChangesNoiseSuppressed:
     def test_id_field_not_in_paths(self):
         """Cosmetic 'id' fields must not appear in the change paths."""
         before_with_ids = {
-            "title": "D", "version": 1, "iteration": 1000,
-            "panels": [{"title": "P", "type": "timeseries", "id": 1,
-                        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
-                        "targets": [{"refId": "A", "expr": "old"}]}],
+            "title": "D",
+            "version": 1,
+            "iteration": 1000,
+            "panels": [
+                {
+                    "title": "P",
+                    "type": "timeseries",
+                    "id": 1,
+                    "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+                    "targets": [{"refId": "A", "expr": "old"}],
+                }
+            ],
         }
         after_with_ids = {
-            "title": "D", "version": 2, "iteration": 2000,
-            "panels": [{"title": "P", "type": "timeseries", "id": 99,
-                        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
-                        "targets": [{"refId": "A", "expr": "new"}]}],
+            "title": "D",
+            "version": 2,
+            "iteration": 2000,
+            "panels": [
+                {
+                    "title": "P",
+                    "type": "timeseries",
+                    "id": 99,
+                    "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+                    "targets": [{"refId": "A", "expr": "new"}],
+                }
+            ],
         }
         result = detail_panel_changes(before_with_ids, after_with_ids)
         all_paths = [pc.path for changes in result.values() for pc in changes]
@@ -181,13 +194,29 @@ class TestDetailPanelChangesNoiseSuppressed:
 
     def test_version_not_in_result(self):
         """Top-level version bump must not produce any panel changes."""
-        before = {"title": "D", "version": 1,
-                  "panels": [{"title": "P", "type": "stat",
-                               "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
-                               "targets": []}]}
-        after  = {"title": "D", "version": 2,
-                  "panels": [{"title": "P", "type": "stat",
-                               "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
-                               "targets": []}]}
+        before = {
+            "title": "D",
+            "version": 1,
+            "panels": [
+                {
+                    "title": "P",
+                    "type": "stat",
+                    "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+                    "targets": [],
+                }
+            ],
+        }
+        after = {
+            "title": "D",
+            "version": 2,
+            "panels": [
+                {
+                    "title": "P",
+                    "type": "stat",
+                    "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+                    "targets": [],
+                }
+            ],
+        }
         result = detail_panel_changes(before, after)
         assert result == {}

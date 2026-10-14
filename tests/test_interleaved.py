@@ -32,16 +32,16 @@ import io
 from rich.console import Console
 from rich.table import Table  # used for isinstance check in TestBuildBandRenderables
 
+from dashdiff.diff_paths import MISSING, PathChange
 from dashdiff.grid import (
     GridPanel,
     PanelChange,
 )
-from dashdiff.diff_paths import PathChange, MISSING
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
+
 
 def _console(width: int = 160) -> tuple[Console, io.StringIO]:
     buf = io.StringIO()
@@ -91,7 +91,12 @@ AFTER_DASH = {
             "title": "Latency",
             "type": "timeseries",
             "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
-            "targets": [{"refId": "A", "expr": "histogram_quantile(0.99, rate(latency_bucket[5m]))"}],
+            "targets": [
+                {
+                    "refId": "A",
+                    "expr": "histogram_quantile(0.99, rate(latency_bucket[5m]))",
+                }
+            ],
         },
     ],
 }
@@ -99,26 +104,32 @@ AFTER_DASH = {
 # Pre-built panel lists
 BEFORE_PANELS = [
     GridPanel("Request Rate", "timeseries", 0, 0, 12, 8),
-    GridPanel("Error Rate",   "timeseries", 12, 0, 12, 8),
+    GridPanel("Error Rate", "timeseries", 12, 0, 12, 8),
 ]
 AFTER_PANELS = [
     GridPanel("Request Rate", "timeseries", 0, 0, 12, 8),
-    GridPanel("Error Rate",   "timeseries", 12, 0, 12, 8),
-    GridPanel("Latency",      "timeseries", 0, 8, 24, 8),
+    GridPanel("Error Rate", "timeseries", 12, 0, 12, 8),
+    GridPanel("Latency", "timeseries", 0, 8, 24, 8),
 ]
 
 CHANGES = {
     "Request Rate": frozenset({PanelChange.UNCHANGED}),
-    "Error Rate":   frozenset({PanelChange.MODIFIED_QUERY}),
-    "Latency":      frozenset({PanelChange.ADDED}),
+    "Error Rate": frozenset({PanelChange.MODIFIED_QUERY}),
+    "Latency": frozenset({PanelChange.ADDED}),
 }
 
 PATH_CHANGES: dict[str, list[PathChange]] = {
     "Error Rate": [
-        PathChange("targets[0].expr", "rate(requests_total[5m])", "rate(requests_total[2m])"),
+        PathChange(
+            "targets[0].expr", "rate(requests_total[5m])", "rate(requests_total[2m])"
+        ),
     ],
     "Latency": [
-        PathChange("targets[0].expr", MISSING, "histogram_quantile(0.99, rate(latency_bucket[5m]))"),
+        PathChange(
+            "targets[0].expr",
+            MISSING,
+            "histogram_quantile(0.99, rate(latency_bucket[5m]))",
+        ),
     ],
 }
 
@@ -127,6 +138,7 @@ PATH_CHANGES: dict[str, list[PathChange]] = {
 # build_band_renderables — new function in grid.py
 # ---------------------------------------------------------------------------
 
+
 class TestBuildBandRenderables:
     def test_function_exists(self):
         """build_band_renderables must be importable from dashdiff.grid."""
@@ -134,6 +146,7 @@ class TestBuildBandRenderables:
 
     def test_returns_list(self):
         from dashdiff.grid import build_band_renderables
+
         result = build_band_renderables(
             y_band=0,
             before_panels=[BEFORE_PANELS[0], BEFORE_PANELS[1]],
@@ -148,6 +161,7 @@ class TestBuildBandRenderables:
     def test_first_renderable_is_side_by_side_table(self):
         """The first renderable in a band must be the side-by-side grid Table."""
         from dashdiff.grid import build_band_renderables
+
         result = build_band_renderables(
             y_band=0,
             before_panels=[BEFORE_PANELS[0], BEFORE_PANELS[1]],
@@ -164,6 +178,7 @@ class TestBuildBandRenderables:
     def test_band_with_changed_panel_includes_detail(self):
         """A band containing a changed panel must include a detail section."""
         from dashdiff.grid import build_band_renderables
+
         result = build_band_renderables(
             y_band=0,
             before_panels=[BEFORE_PANELS[0], BEFORE_PANELS[1]],
@@ -184,6 +199,7 @@ class TestBuildBandRenderables:
     def test_added_panel_band_shows_detail(self):
         """A band containing an ADDED panel must include detail rows."""
         from dashdiff.grid import build_band_renderables
+
         result = build_band_renderables(
             y_band=8,
             before_panels=[],
@@ -203,6 +219,7 @@ class TestBuildBandRenderables:
     def test_detail_values_appear_in_output(self):
         """Before/after values from PathChange must appear in the detail section."""
         from dashdiff.grid import build_band_renderables
+
         result = build_band_renderables(
             y_band=0,
             before_panels=[BEFORE_PANELS[0], BEFORE_PANELS[1]],
@@ -223,12 +240,13 @@ class TestBuildBandRenderables:
 # cmd_detail — interleaved output
 # ---------------------------------------------------------------------------
 
+
 def _run_detail(before, after, strict=False) -> str:
     """Run cmd_detail and capture its output as a plain-text string."""
     import argparse
-    from dashdiff.cli import cmd_detail
     from unittest.mock import patch
-    import shutil
+
+    from dashdiff.cli import cmd_detail
 
     buf = io.StringIO()
     console_mock = Console(file=buf, no_color=True, width=160)
@@ -253,9 +271,9 @@ class TestCmdDetailInterleaved:
         """
         text = _run_detail(BEFORE_DASH, AFTER_DASH)
         # Find positions of key markers
-        expr_pos   = text.find("targets[0].expr")
+        expr_pos = text.find("targets[0].expr")
         latency_pos = text.lower().find("latency")
-        assert expr_pos != -1,   "Expected 'targets[0].expr' in output"
+        assert expr_pos != -1, "Expected 'targets[0].expr' in output"
         assert latency_pos != -1, "Expected 'Latency' in output"
         assert expr_pos < latency_pos, (
             f"Band-0 detail (pos {expr_pos}) must appear before "
@@ -300,6 +318,3 @@ class TestCmdDetailInterleaved:
         assert "Changed paths" not in text, (
             "Old 'Changed paths' section header must be removed in interleaved layout"
         )
-
-
-

@@ -10,13 +10,12 @@ reordering is visible — useful for auditing or enforcing a house style.
 Run with:  python -m pytest tests/ -v
 """
 
-import pytest
 from dashdiff.normalize import normalize
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def lenient(d):
     return normalize(d, strict=False)
@@ -30,6 +29,7 @@ def strict(d):
 # tags
 # ---------------------------------------------------------------------------
 
+
 class TestTags:
     DASHBOARD = {"tags": ["service", "prod", "alpha"]}
 
@@ -42,7 +42,7 @@ class TestTags:
         assert result["tags"] == ["service", "prod", "alpha"]
 
     def test_lenient_tags_idempotent(self):
-        first  = lenient(self.DASHBOARD)
+        first = lenient(self.DASHBOARD)
         second = lenient(first)
         assert first["tags"] == second["tags"]
 
@@ -51,18 +51,21 @@ class TestTags:
 # templating.list[*].options
 # ---------------------------------------------------------------------------
 
+
 class TestVariableOptions:
     DASHBOARD = {
         "templating": {
-            "list": [{
-                "name": "env",
-                "type": "custom",
-                "options": [
-                    {"text": "Production", "value": "prod"},
-                    {"text": "Staging",    "value": "staging"},
-                    {"text": "Dev",        "value": "dev"},
-                ]
-            }]
+            "list": [
+                {
+                    "name": "env",
+                    "type": "custom",
+                    "options": [
+                        {"text": "Production", "value": "prod"},
+                        {"text": "Staging", "value": "staging"},
+                        {"text": "Dev", "value": "dev"},
+                    ],
+                }
+            ]
         }
     }
 
@@ -81,12 +84,9 @@ class TestVariableOptions:
 # timepicker.refresh_intervals
 # ---------------------------------------------------------------------------
 
+
 class TestRefreshIntervals:
-    DASHBOARD = {
-        "timepicker": {
-            "refresh_intervals": ["1m", "5s", "30s", "1h", "10s"]
-        }
-    }
+    DASHBOARD = {"timepicker": {"refresh_intervals": ["1m", "5s", "30s", "1h", "10s"]}}
 
     def test_lenient_sorts_refresh_intervals(self):
         result = lenient(self.DASHBOARD)
@@ -103,13 +103,14 @@ class TestRefreshIntervals:
 # timepicker.quick_ranges
 # ---------------------------------------------------------------------------
 
+
 class TestQuickRanges:
     DASHBOARD = {
         "timepicker": {
             "quick_ranges": [
-                {"display": "Last 7 days",  "from": "now-7d",  "to": "now"},
-                {"display": "Last 6 hours", "from": "now-6h",  "to": "now"},
-                {"display": "Last 1 hour",  "from": "now-1h",  "to": "now"},
+                {"display": "Last 7 days", "from": "now-7d", "to": "now"},
+                {"display": "Last 6 hours", "from": "now-6h", "to": "now"},
+                {"display": "Last 1 hour", "from": "now-1h", "to": "now"},
             ]
         }
     }
@@ -129,18 +130,22 @@ class TestQuickRanges:
 # Order-significant arrays: never sorted in either mode
 # ---------------------------------------------------------------------------
 
+
 class TestOrderSignificantArrays:
     TRANSFORMATIONS = [
-        {"id": "merge",  "options": {}},
+        {"id": "merge", "options": {}},
         {"id": "reduce", "options": {"reducers": ["sum"]}},
     ]
     OVERRIDES = [
-        {"matcher": {"id": "byName", "options": "cpu"}, "properties": [{"id": "color"}]},
+        {
+            "matcher": {"id": "byName", "options": "cpu"},
+            "properties": [{"id": "color"}],
+        },
         {"matcher": {"id": "byName", "options": "mem"}, "properties": [{"id": "unit"}]},
     ]
     LINKS = [
         {"title": "Runbook", "url": "https://wiki/runbook"},
-        {"title": "Alerts",  "url": "https://alerts/"},
+        {"title": "Alerts", "url": "https://alerts/"},
     ]
 
     def _panel_with(self, **kwargs):
@@ -181,6 +186,7 @@ class TestOrderSignificantArrays:
 # Strict mode still strips noise fields
 # ---------------------------------------------------------------------------
 
+
 class TestStrictStillStripsNoise:
     def test_strict_strips_id(self):
         assert "id" not in strict({"id": 1, "title": "x"})
@@ -203,6 +209,7 @@ class TestStrictStillStripsNoise:
 # ---------------------------------------------------------------------------
 # Two-version diff: tags noise gone in lenient, visible in strict
 # ---------------------------------------------------------------------------
+
 
 class TestTagsInTwoVersionDiff:
     V1 = {"uid": "x", "tags": ["service", "prod"]}

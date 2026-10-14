@@ -27,10 +27,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-
 # ---------------------------------------------------------------------------
 # MISSING sentinel
 # ---------------------------------------------------------------------------
+
 
 class _MissingType:
     """Singleton sentinel for absent keys / indices."""
@@ -56,18 +56,20 @@ MISSING: Final[_MissingType] = _MissingType()
 # PathChange
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True, slots=True)
 class PathChange:
     """A single leaf-level difference between two JSON-like values."""
 
-    path:   str
+    path: str
     before: object
-    after:  object
+    after: object
 
 
 # ---------------------------------------------------------------------------
 # diff_paths
 # ---------------------------------------------------------------------------
+
 
 def _join(parent: str, child: str) -> str:
     """Concatenate a parent path and a child segment."""
@@ -80,8 +82,8 @@ def _join(parent: str, child: str) -> str:
 
 def diff_paths(
     before: object,
-    after:  object,
-    path:   str = "",
+    after: object,
+    path: str = "",
 ) -> list[PathChange]:
     """
     Recursively compare *before* and *after* and return a flat list of
@@ -102,9 +104,13 @@ def diff_paths(
         for key in sorted(all_keys):
             child_path = _join(path, str(key))
             if key not in before:
-                result.append(PathChange(path=child_path, before=MISSING, after=after[key]))
+                result.append(
+                    PathChange(path=child_path, before=MISSING, after=after[key])
+                )
             elif key not in after:
-                result.append(PathChange(path=child_path, before=before[key], after=MISSING))
+                result.append(
+                    PathChange(path=child_path, before=before[key], after=MISSING)
+                )
             else:
                 result.extend(diff_paths(before[key], after[key], path=child_path))
         return result
@@ -116,9 +122,13 @@ def diff_paths(
         for i in range(max_len):
             child_path = _join(path, f"[{i}]")
             if i >= len(before):
-                result.append(PathChange(path=child_path, before=MISSING, after=after[i]))
+                result.append(
+                    PathChange(path=child_path, before=MISSING, after=after[i])
+                )
             elif i >= len(after):
-                result.append(PathChange(path=child_path, before=before[i], after=MISSING))
+                result.append(
+                    PathChange(path=child_path, before=before[i], after=MISSING)
+                )
             else:
                 result.extend(diff_paths(before[i], after[i], path=child_path))
         return result

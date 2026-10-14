@@ -24,8 +24,8 @@ import argparse
 import difflib
 import json
 import sys
-from importlib.metadata import version as _pkg_version, PackageNotFoundError
-from pathlib import Path
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from typing import Final, NoReturn
 
 
@@ -37,14 +37,17 @@ def _get_version() -> str:
         return "dev"
 
 
-from dashdiff.normalize import normalize
-from dashdiff.grid import (
-    extract_panels, render_grid, build_grid_renderables, build_band_renderables,
-    classify_changes, PanelChange, build_legend_renderable,
-)
-from dashdiff.visual_diff import compute_diff, render_side_by_side
-from dashdiff.diff_paths import PathChange, diff_paths, MISSING
 from dashdiff.console import make_console
+from dashdiff.diff_paths import PathChange, diff_paths
+from dashdiff.grid import (
+    PanelChange,
+    build_band_renderables,
+    build_legend_renderable,
+    classify_changes,
+    extract_panels,
+    render_grid,
+)
+from dashdiff.normalize import normalize
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -156,7 +159,9 @@ def _load(path: str) -> dict[str, object]:
     except json.JSONDecodeError as exc:
         _die(f"Invalid JSON in {path}: {exc}")
     if not isinstance(data, dict):
-        _die(f"Expected a JSON object at the top level, got {type(data).__name__}: {path}")
+        _die(
+            f"Expected a JSON object at the top level, got {type(data).__name__}: {path}"
+        )
     return data
 
 
@@ -169,6 +174,7 @@ def _die(message: str) -> NoReturn:
 # Subcommand implementations
 # ---------------------------------------------------------------------------
 
+
 def cmd_normalize(args: argparse.Namespace) -> None:
     """Normalise one dashboard file → stdout."""
     dashboard = _load(args.file)
@@ -179,26 +185,29 @@ def cmd_normalize(args: argparse.Namespace) -> None:
 def cmd_diff(args: argparse.Namespace) -> None:
     """Unified text diff of two normalised dashboard files → stdout."""
     before = normalize(_load(args.before), strict=args.strict)
-    after  = normalize(_load(args.after),  strict=args.strict)
+    after = normalize(_load(args.after), strict=args.strict)
 
     before_lines = json.dumps(before, indent=2).splitlines(keepends=True)
-    after_lines  = json.dumps(after,  indent=2).splitlines(keepends=True)
+    after_lines = json.dumps(after, indent=2).splitlines(keepends=True)
 
-    diff = list(difflib.unified_diff(
-        before_lines,
-        after_lines,
-        fromfile=args.before,
-        tofile=args.after,
-    ))
+    diff = list(
+        difflib.unified_diff(
+            before_lines,
+            after_lines,
+            fromfile=args.before,
+            tofile=args.after,
+        )
+    )
 
     if diff:
         sys.stdout.writelines(diff)
-        sys.exit(1)   # non-zero exit like diff(1) when files differ
+        sys.exit(1)  # non-zero exit like diff(1) when files differ
 
 
 def cmd_visual(args: argparse.Namespace) -> None:
     """Rich terminal box-model grid visualiser."""
     import shutil
+
     from rich.panel import Panel as RichPanel
 
     term_width = shutil.get_terminal_size((220, 50)).columns
@@ -214,31 +223,28 @@ def cmd_visual(args: argparse.Namespace) -> None:
 
     # Two-file diff mode
     before_dash = _load(args.before)
-    after_dash  = _load(args.after)
+    after_dash = _load(args.after)
 
     before_norm = normalize(before_dash, strict=args.strict)
-    after_norm  = normalize(after_dash,  strict=args.strict)
+    after_norm = normalize(after_dash, strict=args.strict)
 
     before_panels = extract_panels(before_dash)
-    after_panels  = extract_panels(after_dash)
+    after_panels = extract_panels(after_dash)
 
     # Classify changes per panel using the normalised dicts
     changes: dict[str, frozenset[PanelChange]] = classify_changes(
         before=before_norm.get("panels", []),  # type: ignore[arg-type]
-        after=after_norm.get("panels", []),    # type: ignore[arg-type]
+        after=after_norm.get("panels", []),  # type: ignore[arg-type]
     )
     _unch = frozenset({PanelChange.UNCHANGED})
     changed = {t for t, k in changes.items() if k != _unch}
-
-    before_title = str(before_dash.get("title", args.before))
-    after_title  = str(after_dash.get("title",  args.after))
 
     summary = (
         f"[bold]dashdiff visual[/]  "
         f"mode={'strict' if args.strict else 'lenient'}  "
         f"[bold red]{len(changed)} panel(s) changed[/]"
-        if changed else
-        f"[bold]dashdiff visual[/]  "
+        if changed
+        else f"[bold]dashdiff visual[/]  "
         f"mode={'strict' if args.strict else 'lenient'}  "
         f"[bold green]no changes[/]"
     )
@@ -248,7 +254,7 @@ def cmd_visual(args: argparse.Namespace) -> None:
     # Interleaved layout: for each y-band, show the side-by-side row then
     # any detail panels for changed panels in that band.
     before_by_y: dict[int, list] = {}
-    after_by_y:  dict[int, list] = {}
+    after_by_y: dict[int, list] = {}
     for p in before_panels:
         before_by_y.setdefault(p.y, []).append(p)
     for p in after_panels:
@@ -262,7 +268,7 @@ def cmd_visual(args: argparse.Namespace) -> None:
             before_panels=before_by_y.get(y, []),
             after_panels=after_by_y.get(y, []),
             changes=changes,
-            path_changes={},   # visual mode: no detail
+            path_changes={},  # visual mode: no detail
             console_width=cw,
             show_unchanged_panels=True,
         ):
@@ -273,9 +279,10 @@ def cmd_visual(args: argparse.Namespace) -> None:
 # detail_panel_changes — pure logic helper (no Rich, testable in isolation)
 # ---------------------------------------------------------------------------
 
+
 def detail_panel_changes(
     before_dash: dict[str, object],
-    after_dash:  dict[str, object],
+    after_dash: dict[str, object],
     strict: bool = False,
 ) -> dict[str, list[PathChange]]:
     """
@@ -287,7 +294,7 @@ def detail_panel_changes(
     iteration, key ordering) is suppressed before the comparison.
     """
     before_norm = normalize(before_dash, strict=strict)
-    after_norm  = normalize(after_dash,  strict=strict)
+    after_norm = normalize(after_dash, strict=strict)
 
     before_panels: dict[str, dict[str, object]] = {
         str(p.get("title", "")): p
@@ -296,7 +303,7 @@ def detail_panel_changes(
     }
     after_panels: dict[str, dict[str, object]] = {
         str(p.get("title", "")): p
-        for p in after_norm.get("panels", [])   # type: ignore[union-attr]
+        for p in after_norm.get("panels", [])  # type: ignore[union-attr]
         if isinstance(p, dict)
     }
 
@@ -320,23 +327,24 @@ def cmd_detail(args: argparse.Namespace) -> None:
     breakdown for any changed panels in that band.
     """
     import shutil
+
     from rich.panel import Panel as RichPanel
 
     term_width = shutil.get_terminal_size((220, 50)).columns
     console = make_console(width=term_width)
 
     before_dash = _load(args.before)
-    after_dash  = _load(args.after)
+    after_dash = _load(args.after)
 
     before_norm = normalize(before_dash, strict=args.strict)
-    after_norm  = normalize(after_dash,  strict=args.strict)
+    after_norm = normalize(after_dash, strict=args.strict)
 
     before_panels_grid = extract_panels(before_dash)
-    after_panels_grid  = extract_panels(after_dash)
+    after_panels_grid = extract_panels(after_dash)
 
     changes_map: dict[str, frozenset[PanelChange]] = classify_changes(
         before=before_norm.get("panels", []),  # type: ignore[arg-type]
-        after=after_norm.get("panels", []),    # type: ignore[arg-type]
+        after=after_norm.get("panels", []),  # type: ignore[arg-type]
     )
     _unch = frozenset({PanelChange.UNCHANGED})
     changed_count = sum(1 for k in changes_map.values() if k != _unch)
@@ -344,8 +352,11 @@ def cmd_detail(args: argparse.Namespace) -> None:
     summary = (
         f"[bold]dashdiff detail[/]  "
         f"mode={'strict' if args.strict else 'lenient'}  "
-        + (f"[bold red]{changed_count} panel(s) changed[/]" if changed_count
-           else "[bold green]no changes[/]")
+        + (
+            f"[bold red]{changed_count} panel(s) changed[/]"
+            if changed_count
+            else "[bold green]no changes[/]"
+        )
     )
     console.print(RichPanel(summary, expand=False))
     console.print(build_legend_renderable())
@@ -359,7 +370,7 @@ def cmd_detail(args: argparse.Namespace) -> None:
 
     # Group panels by y-band for both sides
     before_by_y: dict[int, list] = {}
-    after_by_y:  dict[int, list] = {}
+    after_by_y: dict[int, list] = {}
     for p in before_panels_grid:
         before_by_y.setdefault(p.y, []).append(p)
     for p in after_panels_grid:
@@ -375,7 +386,7 @@ def cmd_detail(args: argparse.Namespace) -> None:
             changes=changes_map,
             path_changes=path_changes,
             console_width=cw,
-            show_unchanged_panels=getattr(args, 'full', False),
+            show_unchanged_panels=getattr(args, "full", False),
         ):
             console.print(r)
 
@@ -412,6 +423,7 @@ def cmd_gittool(args: argparse.Namespace) -> None:
 # Argument parser
 # ---------------------------------------------------------------------------
 
+
 def cmd_help(_args: argparse.Namespace) -> None:
     """Print the full help text and exit."""
     print(_HELP_TEXT)
@@ -425,7 +437,8 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog="Run 'dashdiff help' for full documentation.",
     )
     parser.add_argument(
-        "--version", "-V",
+        "--version",
+        "-V",
         action="version",
         version=f"dashdiff {_get_version()}",
     )
@@ -439,51 +452,88 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # -- normalize --
     p_norm = sub.add_parser(
-        "normalize", aliases=["n"],
+        "normalize",
+        aliases=["n"],
         help="Normalise a dashboard file → stdout (git textconv driver)",
     )
     p_norm.add_argument("file", help="Path to the dashboard JSON file")
-    p_norm.add_argument("--strict", action="store_true", help="Preserve document order for set-like arrays")
+    p_norm.add_argument(
+        "--strict",
+        action="store_true",
+        help="Preserve document order for set-like arrays",
+    )
     p_norm.set_defaults(func=cmd_normalize)
 
     # -- diff --
     p_diff = sub.add_parser(
-        "diff", aliases=["d"],
+        "diff",
+        aliases=["d"],
         help="Unified text diff of two normalised files (stdout, exit 1 if differs)",
     )
     p_diff.add_argument("before", help="Path to the 'before' dashboard JSON file")
-    p_diff.add_argument("after",  help="Path to the 'after' dashboard JSON file")
-    p_diff.add_argument("--strict", action="store_true", help="Preserve document order for set-like arrays")
+    p_diff.add_argument("after", help="Path to the 'after' dashboard JSON file")
+    p_diff.add_argument(
+        "--strict",
+        action="store_true",
+        help="Preserve document order for set-like arrays",
+    )
     p_diff.set_defaults(func=cmd_diff)
 
     # -- visual --
     p_vis = sub.add_parser(
-        "visual", aliases=["v"],
+        "visual",
+        aliases=["v"],
         help="Rich terminal box-model grid (single file or side-by-side diff)",
     )
-    p_vis.add_argument("before", help="Dashboard JSON file (or 'before' in two-file mode)")
-    p_vis.add_argument("after",  nargs="?", default=None, help="'After' dashboard JSON file (optional)")
-    p_vis.add_argument("--strict", action="store_true", help="Preserve document order for set-like arrays")
+    p_vis.add_argument(
+        "before", help="Dashboard JSON file (or 'before' in two-file mode)"
+    )
+    p_vis.add_argument(
+        "after", nargs="?", default=None, help="'After' dashboard JSON file (optional)"
+    )
+    p_vis.add_argument(
+        "--strict",
+        action="store_true",
+        help="Preserve document order for set-like arrays",
+    )
     p_vis.set_defaults(func=cmd_visual)
 
     # -- detail --
     p_det = sub.add_parser(
-        "detail", aliases=["x"],
+        "detail",
+        aliases=["x"],
         help="Visual grid + per-panel path breakdown of every changed field",
     )
     p_det.add_argument("before", help="Path to the 'before' dashboard JSON file")
-    p_det.add_argument("after",  help="Path to the 'after' dashboard JSON file")
-    p_det.add_argument("--strict", action="store_true", help="Preserve document order for set-like arrays")
-    p_det.add_argument("--full",   action="store_true", help="Include unchanged panels in the grid (default: show only changed panels)")
+    p_det.add_argument("after", help="Path to the 'after' dashboard JSON file")
+    p_det.add_argument(
+        "--strict",
+        action="store_true",
+        help="Preserve document order for set-like arrays",
+    )
+    p_det.add_argument(
+        "--full",
+        action="store_true",
+        help="Include unchanged panels in the grid (default: show only changed panels)",
+    )
     p_det.set_defaults(func=cmd_detail)
 
     # -- gittool --
     p_git = sub.add_parser(
-        "gittool", aliases=["g"],
+        "gittool",
+        aliases=["g"],
         help="GIT_EXTERNAL_DIFF adapter — unpacks git's 7-arg convention and delegates to visual",
     )
-    p_git.add_argument("git_args", nargs=argparse.REMAINDER, help="7 arguments passed by GIT_EXTERNAL_DIFF")
-    p_git.add_argument("--strict", action="store_true", help="Preserve document order for set-like arrays")
+    p_git.add_argument(
+        "git_args",
+        nargs=argparse.REMAINDER,
+        help="7 arguments passed by GIT_EXTERNAL_DIFF",
+    )
+    p_git.add_argument(
+        "--strict",
+        action="store_true",
+        help="Preserve document order for set-like arrays",
+    )
     p_git.set_defaults(func=cmd_gittool)
 
     return parser
@@ -492,6 +542,7 @@ def _build_parser() -> argparse.ArgumentParser:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None) -> None:
     parser = _build_parser()

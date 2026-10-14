@@ -10,17 +10,15 @@ from __future__ import annotations
 
 import io
 
-import pytest
 from rich.console import Console
 
 from dashdiff.grid import (
-    PanelChange,
     GridPanel,
-    classify_changes,
-    change_border_style,
+    PanelChange,
     _panel_cell,
+    change_border_style,
+    classify_changes,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -36,22 +34,26 @@ _BASE = {
 _QUERY_AND_LAYOUT = {
     "title": "My Panel",
     "type": "timeseries",
-    "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},   # y moved
-    "targets": [{"refId": "A", "expr": "rate(http_requests_total[1m])"}],  # expr changed
+    "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},  # y moved
+    "targets": [
+        {"refId": "A", "expr": "rate(http_requests_total[1m])"}
+    ],  # expr changed
 }
 
 _QUERY_AND_CONFIG = {
     "title": "My Panel",
     "type": "timeseries",
     "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
-    "targets": [{"refId": "A", "expr": "rate(http_requests_total[1m])"}],  # expr changed
-    "options": {"legend": {"displayMode": "hidden"}},                       # config changed
+    "targets": [
+        {"refId": "A", "expr": "rate(http_requests_total[1m])"}
+    ],  # expr changed
+    "options": {"legend": {"displayMode": "hidden"}},  # config changed
 }
 
 _LAYOUT_AND_CONFIG = {
     "title": "My Panel",
     "type": "timeseries",
-    "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},   # y moved
+    "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},  # y moved
     "targets": [{"refId": "A", "expr": "rate(http_requests_total[5m])"}],
     "options": {"legend": {"displayMode": "hidden"}},
 }
@@ -59,15 +61,18 @@ _LAYOUT_AND_CONFIG = {
 _ALL_THREE = {
     "title": "My Panel",
     "type": "timeseries",
-    "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},   # y moved
-    "targets": [{"refId": "A", "expr": "rate(http_requests_total[1m])"}],  # expr changed
-    "options": {"legend": {"displayMode": "hidden"}},                       # config changed
+    "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},  # y moved
+    "targets": [
+        {"refId": "A", "expr": "rate(http_requests_total[1m])"}
+    ],  # expr changed
+    "options": {"legend": {"displayMode": "hidden"}},  # config changed
 }
 
 
 # ---------------------------------------------------------------------------
 # classify_changes() — multi-kind return type
 # ---------------------------------------------------------------------------
+
 
 class TestClassifyChangesMultiKind:
     """classify_changes() must return frozenset[PanelChange] per panel."""
@@ -104,14 +109,14 @@ class TestClassifyChangesMultiKind:
     def test_query_and_layout_change(self):
         result = classify_changes([_BASE], [_QUERY_AND_LAYOUT])
         kinds = result["My Panel"]
-        assert PanelChange.MODIFIED_QUERY  in kinds
+        assert PanelChange.MODIFIED_QUERY in kinds
         assert PanelChange.MODIFIED_LAYOUT in kinds
         assert PanelChange.UNCHANGED not in kinds
 
     def test_query_and_config_change(self):
         result = classify_changes([_BASE], [_QUERY_AND_CONFIG])
         kinds = result["My Panel"]
-        assert PanelChange.MODIFIED_QUERY  in kinds
+        assert PanelChange.MODIFIED_QUERY in kinds
         assert PanelChange.MODIFIED_CONFIG in kinds
 
     def test_layout_and_config_change(self):
@@ -123,7 +128,7 @@ class TestClassifyChangesMultiKind:
     def test_all_three_changes(self):
         result = classify_changes([_BASE], [_ALL_THREE])
         kinds = result["My Panel"]
-        assert PanelChange.MODIFIED_QUERY  in kinds
+        assert PanelChange.MODIFIED_QUERY in kinds
         assert PanelChange.MODIFIED_LAYOUT in kinds
         assert PanelChange.MODIFIED_CONFIG in kinds
 
@@ -131,6 +136,7 @@ class TestClassifyChangesMultiKind:
 # ---------------------------------------------------------------------------
 # change_border_style() — accepts frozenset
 # ---------------------------------------------------------------------------
+
 
 class TestChangeBorderStyleMultiKind:
     def test_structural_kind_in_set_gives_colour(self):
@@ -152,6 +158,7 @@ class TestChangeBorderStyleMultiKind:
 # _panel_cell() — multiple badges rendered
 # ---------------------------------------------------------------------------
 
+
 def _render_cell(kinds: frozenset[PanelChange]) -> str:
     gp = GridPanel("My Panel", "timeseries", x=0, y=0, w=12, h=8)
     cell = _panel_cell(gp, change=kinds, fixed_height=8)
@@ -164,17 +171,19 @@ class TestPanelCellMultiBadge:
     def test_two_badges_both_rendered(self):
         kinds = frozenset({PanelChange.MODIFIED_QUERY, PanelChange.MODIFIED_LAYOUT})
         text = _render_cell(kinds)
-        assert "~query"  in text
+        assert "~query" in text
         assert "~layout" in text
 
     def test_three_badges_all_rendered(self):
-        kinds = frozenset({
-            PanelChange.MODIFIED_QUERY,
-            PanelChange.MODIFIED_LAYOUT,
-            PanelChange.MODIFIED_CONFIG,
-        })
+        kinds = frozenset(
+            {
+                PanelChange.MODIFIED_QUERY,
+                PanelChange.MODIFIED_LAYOUT,
+                PanelChange.MODIFIED_CONFIG,
+            }
+        )
         text = _render_cell(kinds)
-        assert "~query"  in text
+        assert "~query" in text
         assert "~layout" in text
         assert "~config" in text
 
@@ -182,7 +191,7 @@ class TestPanelCellMultiBadge:
         kinds = frozenset({PanelChange.MODIFIED_CONFIG})
         text = _render_cell(kinds)
         assert "~config" in text
-        assert "~query"  not in text
+        assert "~query" not in text
 
     def test_unchanged_has_no_badges(self):
         kinds = frozenset({PanelChange.UNCHANGED})

@@ -17,16 +17,16 @@ Console factory rules (dashdiff.console.make_console):
 from __future__ import annotations
 
 import io
-import os
 import re
+
 import pytest
 
 from dashdiff.grid import (
-    PanelChange,
-    change_border_style,
-    _type_colour,
     _CHANGE_LABELS,
     _TYPE_COLOURS,
+    PanelChange,
+    _type_colour,
+    change_border_style,
 )
 
 # Pattern that matches a 256-colour index reference — must NOT appear
@@ -42,15 +42,19 @@ def _has_index(s: str | None) -> bool:
 # change_border_style — no color(N) indices
 # ---------------------------------------------------------------------------
 
+
 class TestChangeBorderStyleNoIndex:
-    @pytest.mark.parametrize("kind", [
-        PanelChange.ADDED,
-        PanelChange.REMOVED,
-        PanelChange.MODIFIED_QUERY,
-        PanelChange.MODIFIED_TITLE,
-        PanelChange.MODIFIED_LAYOUT,
-        PanelChange.MODIFIED_CONFIG,
-    ])
+    @pytest.mark.parametrize(
+        "kind",
+        [
+            PanelChange.ADDED,
+            PanelChange.REMOVED,
+            PanelChange.MODIFIED_QUERY,
+            PanelChange.MODIFIED_TITLE,
+            PanelChange.MODIFIED_LAYOUT,
+            PanelChange.MODIFIED_CONFIG,
+        ],
+    )
     def test_no_color_index(self, kind: PanelChange):
         style = change_border_style(kind)
         assert not _has_index(style), (
@@ -60,21 +64,27 @@ class TestChangeBorderStyleNoIndex:
     def test_unchanged_returns_none(self):
         assert change_border_style(PanelChange.UNCHANGED) is None
 
-    @pytest.mark.parametrize("kind", [
-        PanelChange.ADDED,
-        PanelChange.REMOVED,
-        PanelChange.MODIFIED_LAYOUT,
-    ])
+    @pytest.mark.parametrize(
+        "kind",
+        [
+            PanelChange.ADDED,
+            PanelChange.REMOVED,
+            PanelChange.MODIFIED_LAYOUT,
+        ],
+    )
     def test_structural_kinds_return_nonempty_string(self, kind: PanelChange):
         """Structural changes (added, removed, layout) must have a border colour."""
         style = change_border_style(kind)
         assert isinstance(style, str) and style.strip()
 
-    @pytest.mark.parametrize("kind", [
-        PanelChange.MODIFIED_QUERY,
-        PanelChange.MODIFIED_CONFIG,
-        PanelChange.MODIFIED_TITLE,
-    ])
+    @pytest.mark.parametrize(
+        "kind",
+        [
+            PanelChange.MODIFIED_QUERY,
+            PanelChange.MODIFIED_CONFIG,
+            PanelChange.MODIFIED_TITLE,
+        ],
+    )
     def test_content_only_kinds_return_none(self, kind: PanelChange):
         """Content-only changes (query, config) must NOT have a border colour."""
         assert change_border_style(kind) is None
@@ -84,12 +94,27 @@ class TestChangeBorderStyleNoIndex:
 # _type_colour — no color(N) indices
 # ---------------------------------------------------------------------------
 
+
 class TestTypeColourNoIndex:
-    @pytest.mark.parametrize("panel_type", [
-        "timeseries", "stat", "gauge", "bargauge", "table",
-        "text", "row", "piechart", "histogram", "logs",
-        "alertlist", "dashlist", "news", "unknown_future_type",
-    ])
+    @pytest.mark.parametrize(
+        "panel_type",
+        [
+            "timeseries",
+            "stat",
+            "gauge",
+            "bargauge",
+            "table",
+            "text",
+            "row",
+            "piechart",
+            "histogram",
+            "logs",
+            "alertlist",
+            "dashlist",
+            "news",
+            "unknown_future_type",
+        ],
+    )
     def test_no_color_index(self, panel_type: str):
         colour = _type_colour(panel_type)
         assert not _has_index(colour), (
@@ -108,6 +133,7 @@ class TestTypeColourNoIndex:
 # _CHANGE_LABELS — no color(N) markup
 # ---------------------------------------------------------------------------
 
+
 class TestChangeLabelsNoIndex:
     @pytest.mark.parametrize("kind", list(PanelChange))
     def test_no_color_index_in_label(self, kind: PanelChange):
@@ -121,6 +147,7 @@ class TestChangeLabelsNoIndex:
 # _PANEL_TYPES constant — all values must be named ANSI colours
 # ---------------------------------------------------------------------------
 
+
 class TestPanelTypesConstantNoIndex:
     def test_all_type_colours_no_index(self):
         bad = {k: v for k, v in _TYPE_COLOURS.items() if _has_index(v)}
@@ -130,6 +157,7 @@ class TestPanelTypesConstantNoIndex:
 # ---------------------------------------------------------------------------
 # make_console() — console factory with TTY / NO_COLOR detection
 # ---------------------------------------------------------------------------
+
 
 class _FakeTTY(io.StringIO):
     def isatty(self) -> bool:
@@ -146,17 +174,20 @@ class TestMakeConsole:
 
     def test_no_color_when_not_a_tty(self):
         from dashdiff.console import make_console
+
         console = make_console(file=_FakePipe())
         assert console.no_color is True
 
     def test_no_color_when_NO_COLOR_set(self, monkeypatch):
         from dashdiff.console import make_console
+
         monkeypatch.setenv("NO_COLOR", "1")
         console = make_console(file=_FakeTTY())
         assert console.no_color is True
 
     def test_no_color_when_TERM_dumb(self, monkeypatch):
         from dashdiff.console import make_console
+
         monkeypatch.setenv("TERM", "dumb")
         monkeypatch.delenv("NO_COLOR", raising=False)
         console = make_console(file=_FakeTTY())
@@ -164,6 +195,7 @@ class TestMakeConsole:
 
     def test_color_enabled_for_tty(self, monkeypatch):
         from dashdiff.console import make_console
+
         monkeypatch.delenv("NO_COLOR", raising=False)
         monkeypatch.delenv("TERM", raising=False)
         console = make_console(file=_FakeTTY())
@@ -171,6 +203,7 @@ class TestMakeConsole:
 
     def test_force_color_overrides_non_tty(self, monkeypatch):
         from dashdiff.console import make_console
+
         monkeypatch.setenv("FORCE_COLOR", "1")
         monkeypatch.delenv("NO_COLOR", raising=False)
         monkeypatch.delenv("TERM", raising=False)
@@ -179,6 +212,7 @@ class TestMakeConsole:
 
     def test_no_color_beats_force_color(self, monkeypatch):
         from dashdiff.console import make_console
+
         monkeypatch.setenv("FORCE_COLOR", "1")
         monkeypatch.setenv("NO_COLOR", "1")
         monkeypatch.delenv("TERM", raising=False)
@@ -187,9 +221,11 @@ class TestMakeConsole:
 
     def test_stderr_tty_fallback(self, monkeypatch):
         """When stdout is a pipe but stderr is a TTY (git difftool), colour is on."""
-        from unittest.mock import patch
         import sys
+        from unittest.mock import patch
+
         from dashdiff.console import make_console
+
         monkeypatch.delenv("FORCE_COLOR", raising=False)
         monkeypatch.delenv("NO_COLOR", raising=False)
         monkeypatch.delenv("TERM", raising=False)

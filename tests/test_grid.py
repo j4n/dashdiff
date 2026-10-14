@@ -8,29 +8,31 @@ position, size, title, type, and a short summary of the panel's queries.
 Run with:  python -m pytest tests/ -v
 """
 
-import pytest
-from dashdiff.grid import extract_panels, GridPanel, panel_queries
-
+from dashdiff.grid import GridPanel, extract_panels, panel_queries
 
 # ---------------------------------------------------------------------------
 # GridPanel dataclass
 # ---------------------------------------------------------------------------
+
 
 class TestGridPanelDataclass:
     def test_has_required_fields(self):
         p = GridPanel(
             title="CPU Usage",
             panel_type="timeseries",
-            x=0, y=0, w=12, h=8,
+            x=0,
+            y=0,
+            w=12,
+            h=8,
             queries=[],
         )
-        assert p.title      == "CPU Usage"
+        assert p.title == "CPU Usage"
         assert p.panel_type == "timeseries"
         assert p.x == 0
         assert p.y == 0
         assert p.w == 12
         assert p.h == 8
-        assert p.queries    == []
+        assert p.queries == []
 
     def test_queries_list(self):
         p = GridPanel("T", "stat", 0, 0, 6, 4, queries=["up", "down"])
@@ -41,6 +43,7 @@ class TestGridPanelDataclass:
 # panel_queries — extract human-readable query strings from a panel dict
 # ---------------------------------------------------------------------------
 
+
 class TestPanelQueries:
     def test_prometheus_expr(self):
         panel = {"targets": [{"refId": "A", "expr": "rate(http_requests_total[5m])"}]}
@@ -48,10 +51,12 @@ class TestPanelQueries:
         assert any("rate(http_requests_total[5m])" in q for q in qs)
 
     def test_multiple_targets(self):
-        panel = {"targets": [
-            {"refId": "A", "expr": "metric_a"},
-            {"refId": "B", "expr": "metric_b"},
-        ]}
+        panel = {
+            "targets": [
+                {"refId": "A", "expr": "metric_a"},
+                {"refId": "B", "expr": "metric_b"},
+            ]
+        }
         qs = panel_queries(panel)
         assert len(qs) == 2
 
@@ -86,16 +91,21 @@ class TestPanelQueries:
 # extract_panels — convert a dashboard dict to a flat list of GridPanels
 # ---------------------------------------------------------------------------
 
+
 class TestExtractPanels:
     SIMPLE = {
         "panels": [
             {
-                "id": 1, "title": "Request Rate", "type": "timeseries",
+                "id": 1,
+                "title": "Request Rate",
+                "type": "timeseries",
                 "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
                 "targets": [{"refId": "A", "expr": "rate(http_requests_total[5m])"}],
             },
             {
-                "id": 2, "title": "Error Rate", "type": "timeseries",
+                "id": 2,
+                "title": "Error Rate",
+                "type": "timeseries",
                 "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
                 "targets": [{"refId": "A", "expr": "rate(errors_total[5m])"}],
             },
@@ -116,8 +126,8 @@ class TestExtractPanels:
         by_title = {p.title: p for p in result}
         assert by_title["Request Rate"].x == 0
         assert by_title["Request Rate"].y == 0
-        assert by_title["Error Rate"].x   == 12
-        assert by_title["Error Rate"].y   == 0
+        assert by_title["Error Rate"].x == 12
+        assert by_title["Error Rate"].y == 0
 
     def test_panel_sizes(self):
         result = extract_panels(self.SIMPLE)
@@ -147,16 +157,22 @@ class TestExtractPanelsRowUnwrapping:
     ROW_DASHBOARD = {
         "panels": [
             {
-                "id": 10, "title": "My Row", "type": "row",
+                "id": 10,
+                "title": "My Row",
+                "type": "row",
                 "gridPos": {"x": 0, "y": 0, "w": 24, "h": 1},
                 "panels": [
                     {
-                        "id": 11, "title": "Nested A", "type": "stat",
+                        "id": 11,
+                        "title": "Nested A",
+                        "type": "stat",
                         "gridPos": {"x": 0, "y": 1, "w": 12, "h": 4},
                         "targets": [{"refId": "A", "expr": "up"}],
                     },
                     {
-                        "id": 12, "title": "Nested B", "type": "stat",
+                        "id": 12,
+                        "title": "Nested B",
+                        "type": "stat",
                         "gridPos": {"x": 12, "y": 1, "w": 12, "h": 4},
                         "targets": [{"refId": "A", "expr": "down"}],
                     },
@@ -191,17 +207,24 @@ class TestExtractPanelsRowUnwrapping:
 # Grid dimensions
 # ---------------------------------------------------------------------------
 
+
 class TestGridDimensions:
     def test_grid_width_is_24(self):
         """Grafana uses a 24-column grid."""
         from dashdiff.grid import GRID_COLUMNS
+
         assert GRID_COLUMNS == 24
 
     def test_panels_fit_within_grid(self):
         dashboard = {
             "panels": [
-                {"id": 1, "title": "P", "type": "stat",
-                 "gridPos": {"x": 0, "y": 0, "w": 24, "h": 4}, "targets": []},
+                {
+                    "id": 1,
+                    "title": "P",
+                    "type": "stat",
+                    "gridPos": {"x": 0, "y": 0, "w": 24, "h": 4},
+                    "targets": [],
+                },
             ]
         }
         result = extract_panels(dashboard)

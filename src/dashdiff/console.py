@@ -20,7 +20,10 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import IO, Any
+from typing import IO, TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 
 def make_console(
@@ -28,7 +31,7 @@ def make_console(
     file: IO[str] | None = None,
     width: int = 220,
     **kwargs: Any,
-) -> "Console":
+) -> Console:
     """
     Return a ``rich.console.Console`` with colour disabled automatically when
     the output is non-interactive or the user has opted out via environment.
@@ -42,7 +45,9 @@ def make_console(
     **kwargs:
         Forwarded to ``rich.console.Console``.
     """
-    from rich.console import Console  # lazy import — rich is a hard dep but keep it lazy
+    from rich.console import (
+        Console,  # lazy import — rich is a hard dep but keep it lazy
+    )
 
     out = file if file is not None else sys.stdout
 

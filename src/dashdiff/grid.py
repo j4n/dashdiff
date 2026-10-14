@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, Final
 if TYPE_CHECKING:
     from rich.console import Console
 
-GRID_COLUMNS: Final[int] = 24   # Grafana's fixed canvas width
+GRID_COLUMNS: Final[int] = 24  # Grafana's fixed canvas width
 NARROW_WIDTH: Final[int] = 100  # Below this, switch from side-by-side to stacked layout
 
 
@@ -61,15 +61,17 @@ def truncate_title(title: str, max_chars: int) -> str:
 # Change classification
 # ---------------------------------------------------------------------------
 
+
 class PanelChange(enum.Enum):
     """Semantic classification of how a panel differs between two dashboard versions."""
-    ADDED            = "added"            # present in after, absent in before
-    REMOVED          = "removed"          # present in before, absent in after
-    MODIFIED_QUERY   = "modified_query"   # targets/expressions changed
-    MODIFIED_TITLE   = "modified_title"   # title changed (treated as remove+add)
-    MODIFIED_LAYOUT  = "modified_layout"  # gridPos changed only
-    MODIFIED_CONFIG  = "modified_config"  # other fields changed
-    UNCHANGED        = "unchanged"
+
+    ADDED = "added"  # present in after, absent in before
+    REMOVED = "removed"  # present in before, absent in after
+    MODIFIED_QUERY = "modified_query"  # targets/expressions changed
+    MODIFIED_TITLE = "modified_title"  # title changed (treated as remove+add)
+    MODIFIED_LAYOUT = "modified_layout"  # gridPos changed only
+    MODIFIED_CONFIG = "modified_config"  # other fields changed
+    UNCHANGED = "unchanged"
 
 
 # Colour palette for each change kind.
@@ -78,23 +80,25 @@ class PanelChange(enum.Enum):
 _CHANGE_COLOURS: Final[dict[PanelChange, str]] = {
     # Explicit 24-bit hex colours so terminal palette remapping cannot affect them.
     # Chosen for visibility on both dark and light backgrounds.
-    PanelChange.ADDED:           "bold #23d18b",   # vivid green
-    PanelChange.REMOVED:         "bold #f14c4c",   # vivid red
-    PanelChange.MODIFIED_QUERY:  "bold #e5a50a",   # amber/gold — clearly yellow
-    PanelChange.MODIFIED_TITLE:  "bold #e5a50a",   # same as query
-    PanelChange.MODIFIED_LAYOUT: "bold #3b8eea",   # medium blue
-    PanelChange.MODIFIED_CONFIG: "bold #bc3fbc",   # vivid magenta
+    PanelChange.ADDED: "bold #23d18b",  # vivid green
+    PanelChange.REMOVED: "bold #f14c4c",  # vivid red
+    PanelChange.MODIFIED_QUERY: "bold #e5a50a",  # amber/gold — clearly yellow
+    PanelChange.MODIFIED_TITLE: "bold #e5a50a",  # same as query
+    PanelChange.MODIFIED_LAYOUT: "bold #3b8eea",  # medium blue
+    PanelChange.MODIFIED_CONFIG: "bold #bc3fbc",  # vivid magenta
 }
 
 
 # Only structural changes get a coloured border.
 # Config/query changes are content-only — the box looks the same but the
 # badge inside the body is coloured.  This keeps the border signal strong.
-_BORDER_CHANGE_KINDS: Final[frozenset[PanelChange]] = frozenset({
-    PanelChange.ADDED,
-    PanelChange.REMOVED,
-    PanelChange.MODIFIED_LAYOUT,
-})
+_BORDER_CHANGE_KINDS: Final[frozenset[PanelChange]] = frozenset(
+    {
+        PanelChange.ADDED,
+        PanelChange.REMOVED,
+        PanelChange.MODIFIED_LAYOUT,
+    }
+)
 
 
 def change_border_style(kinds: frozenset[PanelChange] | PanelChange) -> str | None:
@@ -151,7 +155,7 @@ def _panel_without(panel: dict[str, object], *keys: str) -> dict[str, object]:
 
 def classify_changes(
     before: list[dict[str, object]],
-    after:  list[dict[str, object]],
+    after: list[dict[str, object]],
 ) -> dict[str, frozenset[PanelChange]]:
     """
     Compare two lists of raw panel dicts and return a mapping of
@@ -200,7 +204,9 @@ def classify_changes(
                 a_rest = _panel_without(a, "targets", "gridPos")
                 if b_rest != a_rest:
                     kinds.add(PanelChange.MODIFIED_CONFIG)
-                result[title] = frozenset(kinds) if kinds else frozenset({PanelChange.UNCHANGED})
+                result[title] = (
+                    frozenset(kinds) if kinds else frozenset({PanelChange.UNCHANGED})
+                )
 
     return result
 
@@ -209,10 +215,12 @@ def classify_changes(
 # Data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True, slots=True)
 class GridPanel:
     """Immutable value object representing one panel on the Grafana canvas."""
-    title:      str
+
+    title: str
     panel_type: str
     x: int
     y: int
@@ -222,7 +230,13 @@ class GridPanel:
 
 
 # Query field names to try, in priority order
-_QUERY_FIELDS: Final[tuple[str, ...]] = ("expr", "rawSql", "query", "target", "rawQuery")
+_QUERY_FIELDS: Final[tuple[str, ...]] = (
+    "expr",
+    "rawSql",
+    "query",
+    "target",
+    "rawQuery",
+)
 
 
 def panel_queries(panel: dict[str, object]) -> list[str]:
@@ -260,13 +274,13 @@ def _panel_to_grid(panel: dict[str, object]) -> GridPanel:
     gp = panel.get("gridPos") or {}
     assert isinstance(gp, dict)
     return GridPanel(
-        title      = str(panel.get("title", "(untitled)")),
-        panel_type = str(panel.get("type",  "unknown")),
-        x = int(gp.get("x", 0)),  # type: ignore[arg-type]
-        y = int(gp.get("y", 0)),  # type: ignore[arg-type]
-        w = int(gp.get("w", GRID_COLUMNS)),  # type: ignore[arg-type]
-        h = int(gp.get("h", 1)),  # type: ignore[arg-type]
-        queries = tuple(panel_queries(panel)),
+        title=str(panel.get("title", "(untitled)")),
+        panel_type=str(panel.get("type", "unknown")),
+        x=int(gp.get("x", 0)),  # type: ignore[arg-type]
+        y=int(gp.get("y", 0)),  # type: ignore[arg-type]
+        w=int(gp.get("w", GRID_COLUMNS)),  # type: ignore[arg-type]
+        h=int(gp.get("h", 1)),  # type: ignore[arg-type]
+        queries=tuple(panel_queries(panel)),
     )
 
 
@@ -299,19 +313,19 @@ def extract_panels(dashboard: dict[str, object]) -> list[GridPanel]:
 # Named ANSI colours — readable on both light and dark terminal backgrounds.
 _TYPE_COLOURS: Final[dict[str, str]] = {
     "timeseries": "cyan",
-    "stat":       "yellow",
-    "gauge":      "bright_yellow",
-    "barchart":   "magenta",
-    "bargauge":   "bright_magenta",
-    "table":      "bright_cyan",
-    "text":       "dim",
-    "row":        "dim",
-    "piechart":   "bright_red",
-    "histogram":  "green",
-    "logs":       "bright_green",
-    "alertlist":  "red",
-    "dashlist":   "blue",
-    "news":       "bright_blue",
+    "stat": "yellow",
+    "gauge": "bright_yellow",
+    "barchart": "magenta",
+    "bargauge": "bright_magenta",
+    "table": "bright_cyan",
+    "text": "dim",
+    "row": "dim",
+    "piechart": "bright_red",
+    "histogram": "green",
+    "logs": "bright_green",
+    "alertlist": "red",
+    "dashlist": "blue",
+    "news": "bright_blue",
 }
 _TYPE_COLOUR_DEFAULT: Final[str] = "default"
 
@@ -324,10 +338,10 @@ def _type_colour(panel_type: str) -> str:
 # Colours are derived from _CHANGE_COLOURS so they can never drift.
 # Keys map directly to the badge text; the style is applied in _panel_cell.
 _CHANGE_BADGE_TEXT: Final[dict[PanelChange, str]] = {
-    PanelChange.ADDED:           "+added",
-    PanelChange.REMOVED:         "-removed",
-    PanelChange.MODIFIED_QUERY:  "~query",
-    PanelChange.MODIFIED_TITLE:  "~query",
+    PanelChange.ADDED: "+added",
+    PanelChange.REMOVED: "-removed",
+    PanelChange.MODIFIED_QUERY: "~query",
+    PanelChange.MODIFIED_TITLE: "~query",
     PanelChange.MODIFIED_LAYOUT: "~layout",
     PanelChange.MODIFIED_CONFIG: "~config",
 }
@@ -343,12 +357,20 @@ _CHANGE_LABELS: Final[dict[PanelChange, str]] = {
 # Colours are derived from _CHANGE_COLOURS so they can never drift.
 _LEGEND_ENTRIES: Final[list[tuple[PanelChange, str, str]]] = [
     # (kind,                       colour derived from _CHANGE_COLOURS,   label)
-    (PanelChange.ADDED,            _CHANGE_COLOURS[PanelChange.ADDED],            "added"),
-    (PanelChange.REMOVED,          _CHANGE_COLOURS[PanelChange.REMOVED],          "removed"),
-    (PanelChange.MODIFIED_QUERY,   _CHANGE_COLOURS[PanelChange.MODIFIED_QUERY],   "query"),
-    (PanelChange.MODIFIED_LAYOUT,  _CHANGE_COLOURS[PanelChange.MODIFIED_LAYOUT],  "layout"),
-    (PanelChange.MODIFIED_CONFIG,  _CHANGE_COLOURS[PanelChange.MODIFIED_CONFIG],  "config"),
-    (PanelChange.UNCHANGED,        "dim",                                         "unchanged"),
+    (PanelChange.ADDED, _CHANGE_COLOURS[PanelChange.ADDED], "added"),
+    (PanelChange.REMOVED, _CHANGE_COLOURS[PanelChange.REMOVED], "removed"),
+    (PanelChange.MODIFIED_QUERY, _CHANGE_COLOURS[PanelChange.MODIFIED_QUERY], "query"),
+    (
+        PanelChange.MODIFIED_LAYOUT,
+        _CHANGE_COLOURS[PanelChange.MODIFIED_LAYOUT],
+        "layout",
+    ),
+    (
+        PanelChange.MODIFIED_CONFIG,
+        _CHANGE_COLOURS[PanelChange.MODIFIED_CONFIG],
+        "config",
+    ),
+    (PanelChange.UNCHANGED, "dim", "unchanged"),
 ]
 
 
@@ -389,6 +411,7 @@ def render_legend(console: object) -> None:
 # Height equalisation helpers
 # ---------------------------------------------------------------------------
 
+
 def title_line_count(title: str, col_width: int) -> int:
     """
     Return the number of lines the *title* string occupies when rendered
@@ -402,6 +425,7 @@ def title_line_count(title: str, col_width: int) -> int:
     if not title:
         return 1
     import math
+
     return math.ceil(len(title) / usable)
 
 
@@ -435,12 +459,13 @@ def _panel_render_height(
         A value of 0 (default) disables proportional scaling.
     """
     import math
+
     usable_title = max(col_width - 2, 1)
-    usable_body  = max(col_width - 4, 1)
+    usable_body = max(col_width - 4, 1)
     badge = f"[{panel_type}]"
-    title_lines   = math.ceil(len(title) / usable_title) if title else 1
+    title_lines = math.ceil(len(title) / usable_title) if title else 1
     content_lines = math.ceil(len(badge) / usable_body)
-    content_min   = 2 + title_lines + content_lines
+    content_min = 2 + title_lines + content_lines
     return max(content_min, grid_h)
 
 
@@ -459,8 +484,7 @@ def band_max_height(panels: list[GridPanel], console_width: int) -> int:
     for p in panels:
         col_w = max(int(console_width * p.w / GRID_COLUMNS), 1)
         h = _panel_render_height(p.panel_type, p.title, col_width=col_w, grid_h=p.h)
-        if h > max_h:
-            max_h = h
+        max_h = max(max_h, h)
     return max_h
 
 
@@ -494,9 +518,9 @@ def _panel_cell(
         (passed directly to ``rich.panel.Panel(height=…)``).  Used by
         ``build_grid_renderables`` to equalise all panels in a band.
     """
+    from rich import box as rich_box
     from rich.panel import Panel
     from rich.text import Text
-    from rich import box as rich_box
 
     if isinstance(change, PanelChange):
         change = frozenset({change})
@@ -534,8 +558,9 @@ def _panel_cell(
 
 def _spacer_cell(w: int) -> object:
     """An empty spacer cell for gaps in the grid."""
-    from rich.panel import Panel
     from rich import box as rich_box
+    from rich.panel import Panel
+
     return Panel("", border_style="dim", box=rich_box.MINIMAL, padding=(0, 0))
 
 
@@ -563,8 +588,8 @@ def build_grid_renderables(
         Defaults to 160 (a safe minimum for modern terminals).
     """
     from rich.rule import Rule
-    from rich.text import Text
     from rich.table import Table
+    from rich.text import Text
 
     effective_changes: dict[str, frozenset[PanelChange]] = changes or {}
     renderables: list[object] = []
@@ -623,7 +648,9 @@ def build_grid_renderables(
                 row_cells.append(
                     _panel_cell(
                         p,
-                        change=effective_changes.get(p.title, frozenset({PanelChange.UNCHANGED})),
+                        change=effective_changes.get(
+                            p.title, frozenset({PanelChange.UNCHANGED})
+                        ),
                         fixed_height=max_h,
                     )
                 )
@@ -636,9 +663,9 @@ def build_grid_renderables(
 def build_band_renderables(
     y_band: int,
     before_panels: list[GridPanel],
-    after_panels:  list[GridPanel],
-    changes:       dict[str, frozenset[PanelChange]],
-    path_changes:  dict[str, list[object]],
+    after_panels: list[GridPanel],
+    changes: dict[str, frozenset[PanelChange]],
+    path_changes: dict[str, list[object]],
     console_width: int = 160,
     show_unchanged_panels: bool = False,
 ) -> list[object]:
@@ -670,22 +697,19 @@ def build_band_renderables(
         Terminal width used for height equalisation.
     """
     import json as _json
-    from rich.table import Table
-    from rich.panel import Panel as RichPanel
+
     from rich import box as rich_box
     from rich.console import Group
+    from rich.panel import Panel as RichPanel
+    from rich.table import Table
+
     from dashdiff.diff_paths import MISSING
 
     # Early exit: skip bands where every panel is UNCHANGED.
     # This keeps the output focused on what actually changed.
-    all_band_titles = (
-        {p.title for p in before_panels} | {p.title for p in after_panels}
-    )
+    all_band_titles = {p.title for p in before_panels} | {p.title for p in after_panels}
     _unchanged = frozenset({PanelChange.UNCHANGED})
-    if not any(
-        changes.get(t, _unchanged) != _unchanged
-        for t in all_band_titles
-    ):
+    if not any(changes.get(t, _unchanged) != _unchanged for t in all_band_titles):
         return []
 
     renderables: list[object] = []
@@ -694,7 +718,9 @@ def build_band_renderables(
     # 1. Grid row — side-by-side (wide) or stacked (narrow)
     # ------------------------------------------------------------------ #
 
-    def _filter_changes_for_side(change: frozenset[PanelChange], is_before: bool) -> frozenset[PanelChange]:
+    def _filter_changes_for_side(
+        change: frozenset[PanelChange], is_before: bool
+    ) -> frozenset[PanelChange]:
         """Filter change badges based on side context.
 
         Before side: show only REMOVED (panels deleted)
@@ -708,14 +734,20 @@ def build_band_renderables(
             filtered = change - {PanelChange.REMOVED}
         return filtered or frozenset({PanelChange.UNCHANGED})
 
-    def _one_side_table(panels: list[GridPanel], side_width: int, is_before: bool) -> object:
+    def _one_side_table(
+        panels: list[GridPanel], side_width: int, is_before: bool
+    ) -> object:
         """Build a single-side band table (one row of panel boxes)."""
         if not panels:
             from rich.text import Text
+
             return Text("(no panels in this band)", style="dim")
         band_table = Table(
-            box=None, show_header=False, show_edge=False,
-            padding=(0, 0), expand=True,
+            box=None,
+            show_header=False,
+            show_edge=False,
+            padding=(0, 0),
+            expand=True,
         )
         row_panels = sorted(panels, key=lambda p: p.x)
         max_h = band_max_height(row_panels, console_width=side_width)
@@ -732,10 +764,18 @@ def build_band_renderables(
         for w, _ in cells:
             band_table.add_column(ratio=w, min_width=w * unit_px)
         row_cells: list[object] = [
-            _panel_cell(p, change=_filter_changes_for_side(
-                changes.get(p.title, frozenset({PanelChange.UNCHANGED})), is_before),
-                        fixed_height=max_h)
-            if p is not None else _spacer_cell(w)
+            (
+                _panel_cell(
+                    p,
+                    change=_filter_changes_for_side(
+                        changes.get(p.title, frozenset({PanelChange.UNCHANGED})),
+                        is_before,
+                    ),
+                    fixed_height=max_h,
+                )
+                if p is not None
+                else _spacer_cell(w)
+            )
             for w, p in cells
         ]
         band_table.add_row(*row_cells)
@@ -749,8 +789,12 @@ def build_band_renderables(
         grid_after = after_panels
     else:
         # Show only panels that have changes
-        grid_before = [p for p in before_panels if changes.get(p.title, _unchanged) != _unchanged]
-        grid_after = [p for p in after_panels if changes.get(p.title, _unchanged) != _unchanged]
+        grid_before = [
+            p for p in before_panels if changes.get(p.title, _unchanged) != _unchanged
+        ]
+        grid_after = [
+            p for p in after_panels if changes.get(p.title, _unchanged) != _unchanged
+        ]
 
     if console_width >= NARROW_WIDTH:
         # Wide: side-by-side two-column outer table
@@ -761,31 +805,34 @@ def build_band_renderables(
             expand=True,
         )
         outer.add_column("before", ratio=1)
-        outer.add_column("after",  ratio=1)
+        outer.add_column("after", ratio=1)
         outer.add_row(
             _one_side_table(grid_before, console_width // 2, is_before=True),
-            _one_side_table(grid_after,  console_width // 2, is_before=False),
+            _one_side_table(grid_after, console_width // 2, is_before=False),
         )
         renderables.append(outer)
     else:
         # Narrow: stacked — before section on top, after section below
-        from rich.rule import Rule
         from rich.console import Group
-        renderables.append(Group(
-            Rule("before", style="dim", align="left"),
-            _one_side_table(grid_before, console_width, is_before=True),
-            Rule("after",  style="dim", align="left"),
-            _one_side_table(grid_after,  console_width, is_before=False),
-        ))
+        from rich.rule import Rule
+
+        renderables.append(
+            Group(
+                Rule("before", style="dim", align="left"),
+                _one_side_table(grid_before, console_width, is_before=True),
+                Rule("after", style="dim", align="left"),
+                _one_side_table(grid_after, console_width, is_before=False),
+            )
+        )
 
     # ------------------------------------------------------------------ #
     # 2. Detail panels for changed panels in this band
     # ------------------------------------------------------------------ #
     # Short badge text for each change kind (used in the detail box header)
     _BADGE: dict[PanelChange, str] = {
-        PanelChange.ADDED:           "+added",
-        PanelChange.REMOVED:         "-removed",
-        PanelChange.MODIFIED_QUERY:  "~query",
+        PanelChange.ADDED: "+added",
+        PanelChange.REMOVED: "-removed",
+        PanelChange.MODIFIED_QUERY: "~query",
         PanelChange.MODIFIED_LAYOUT: "~layout",
         PanelChange.MODIFIED_CONFIG: "~config",
     }
@@ -796,7 +843,7 @@ def build_band_renderables(
     title_to_x: dict[str, int] = {}
     for p in before_panels:
         title_to_x[p.title] = p.x
-    for p in after_panels:          # after takes precedence
+    for p in after_panels:  # after takes precedence
         title_to_x[p.title] = p.x
 
     all_band_panels = {p.title for p in before_panels} | {p.title for p in after_panels}
@@ -829,16 +876,19 @@ def build_band_renderables(
                 padding=(0, 1),
                 expand=True,
             )
-            tbl.add_column("path",   style="bold cyan",  no_wrap=True)
+            tbl.add_column("path", style="bold cyan", no_wrap=True)
             tbl.add_column("before", style="bold red")
-            tbl.add_column("after",  style="bold green")
+            tbl.add_column("after", style="bold green")
             for pc in panel_paths:
-                before_str = "(absent)" if pc.before is MISSING else _json.dumps(pc.before)  # type: ignore[union-attr]
-                after_str  = "(absent)" if pc.after  is MISSING else _json.dumps(pc.after)   # type: ignore[union-attr]
+                before_str = (
+                    "(absent)" if pc.before is MISSING else _json.dumps(pc.before)
+                )  # type: ignore[union-attr]
+                after_str = "(absent)" if pc.after is MISSING else _json.dumps(pc.after)  # type: ignore[union-attr]
                 tbl.add_row(pc.path, before_str, after_str)  # type: ignore[union-attr]
         else:
             # Narrow: single-column table — path key on its own line, then indented before/after
             from rich.text import Text as RichText
+
             tbl = Table(
                 box=rich_box.SIMPLE_HEAD,
                 show_header=False,
@@ -848,8 +898,10 @@ def build_band_renderables(
             )
             tbl.add_column("entry")
             for pc in panel_paths:
-                before_str = "(absent)" if pc.before is MISSING else _json.dumps(pc.before)  # type: ignore[union-attr]
-                after_str  = "(absent)" if pc.after  is MISSING else _json.dumps(pc.after)   # type: ignore[union-attr]
+                before_str = (
+                    "(absent)" if pc.before is MISSING else _json.dumps(pc.before)
+                )  # type: ignore[union-attr]
+                after_str = "(absent)" if pc.after is MISSING else _json.dumps(pc.after)  # type: ignore[union-attr]
                 tbl.add_row(RichText(pc.path, style="bold cyan"))  # type: ignore[union-attr]
                 tbl.add_row(f"  [bold red]before:[/] {before_str}")
                 tbl.add_row(f"  [bold green]after:[/]  {after_str}")
@@ -862,7 +914,7 @@ def build_band_renderables(
                 tbl,
                 title=header_title,
                 title_align="left",
-                border_style=border,   # already includes "bold" from _CHANGE_COLOURS
+                border_style=border,  # already includes "bold" from _CHANGE_COLOURS
                 box=rich_box.ROUNDED,
             )
         )
@@ -891,10 +943,10 @@ def render_grid(
         Mapping of panel title → ``frozenset[PanelChange]`` from ``classify_changes()``.
         Panels absent from the map are treated as ``{UNCHANGED}``.
     """
+    import shutil
+
     from rich.console import Console as RichConsole
     from rich.table import Table
-    from rich import box as rich_box
-    import shutil
 
     if console is None:
         term_width = shutil.get_terminal_size((220, 50)).columns
@@ -942,9 +994,19 @@ def render_grid(
         for w, _ in cells:
             band_table.add_column(ratio=w, min_width=w * unit_px)
 
-        band_table.add_row(*[
-            _panel_cell(p, change=effective_changes.get(p.title, frozenset({PanelChange.UNCHANGED})))
-            if p is not None else _spacer_cell(w)
-            for w, p in cells
-        ])
+        band_table.add_row(
+            *[
+                (
+                    _panel_cell(
+                        p,
+                        change=effective_changes.get(
+                            p.title, frozenset({PanelChange.UNCHANGED})
+                        ),
+                    )
+                    if p is not None
+                    else _spacer_cell(w)
+                )
+                for w, p in cells
+            ]
+        )
         console.print(band_table)

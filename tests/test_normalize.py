@@ -6,7 +6,6 @@ Run with:  python -m pytest tests/ -v
 
 import json
 import pathlib
-import pytest
 
 from dashdiff.normalize import normalize
 
@@ -20,6 +19,7 @@ def load(name):
 # ---------------------------------------------------------------------------
 # Noise-stripping
 # ---------------------------------------------------------------------------
+
 
 class TestNoiseStripping:
     def test_strips_top_level_id(self):
@@ -47,7 +47,9 @@ class TestNoiseStripping:
         assert "id" not in result["panels"][0]
 
     def test_preserves_panel_title(self):
-        result = normalize({"panels": [{"id": 3, "title": "My Panel", "type": "timeseries"}]})
+        result = normalize(
+            {"panels": [{"id": 3, "title": "My Panel", "type": "timeseries"}]}
+        )
         assert result["panels"][0]["title"] == "My Panel"
 
 
@@ -55,15 +57,24 @@ class TestNoiseStripping:
 # Key ordering
 # ---------------------------------------------------------------------------
 
+
 class TestKeyOrdering:
     def test_top_level_keys_are_sorted(self):
         result = normalize({"timezone": "utc", "title": "x", "refresh": "5s"})
         assert list(result.keys()) == sorted(result.keys())
 
     def test_nested_keys_are_sorted(self):
-        result = normalize({
-            "panels": [{"type": "stat", "title": "P", "gridPos": {"w": 6, "h": 4, "x": 0, "y": 0}}]
-        })
+        result = normalize(
+            {
+                "panels": [
+                    {
+                        "type": "stat",
+                        "title": "P",
+                        "gridPos": {"w": 6, "h": 4, "x": 0, "y": 0},
+                    }
+                ]
+            }
+        )
         panel = result["panels"][0]
         assert list(panel.keys()) == sorted(panel.keys())
         assert list(panel["gridPos"].keys()) == sorted(panel["gridPos"].keys())
@@ -73,24 +84,49 @@ class TestKeyOrdering:
 # Panel ordering
 # ---------------------------------------------------------------------------
 
+
 class TestPanelOrdering:
     def test_panels_sorted_by_y_then_x(self):
-        result = normalize({
-            "panels": [
-                {"id": 3, "title": "Error Rate",   "type": "ts", "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}},
-                {"id": 1, "title": "Request Rate", "type": "ts", "gridPos": {"x": 0,  "y": 0, "w": 12, "h": 8}},
-            ]
-        })
+        result = normalize(
+            {
+                "panels": [
+                    {
+                        "id": 3,
+                        "title": "Error Rate",
+                        "type": "ts",
+                        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+                    },
+                    {
+                        "id": 1,
+                        "title": "Request Rate",
+                        "type": "ts",
+                        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+                    },
+                ]
+            }
+        )
         titles = [p["title"] for p in result["panels"]]
         assert titles == ["Request Rate", "Error Rate"]
 
     def test_panels_same_position_sorted_by_title(self):
-        result = normalize({
-            "panels": [
-                {"id": 2, "title": "Zebra", "type": "ts", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}},
-                {"id": 1, "title": "Alpha", "type": "ts", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}},
-            ]
-        })
+        result = normalize(
+            {
+                "panels": [
+                    {
+                        "id": 2,
+                        "title": "Zebra",
+                        "type": "ts",
+                        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+                    },
+                    {
+                        "id": 1,
+                        "title": "Alpha",
+                        "type": "ts",
+                        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+                    },
+                ]
+            }
+        )
         titles = [p["title"] for p in result["panels"]]
         assert titles == ["Alpha", "Zebra"]
 
@@ -99,18 +135,25 @@ class TestPanelOrdering:
 # Target (query) ordering
 # ---------------------------------------------------------------------------
 
+
 class TestTargetOrdering:
     def test_targets_sorted_by_refid(self):
-        result = normalize({
-            "panels": [{
-                "id": 1, "title": "P", "type": "ts",
-                "targets": [
-                    {"refId": "C", "expr": "metric_c"},
-                    {"refId": "A", "expr": "metric_a"},
-                    {"refId": "B", "expr": "metric_b"},
+        result = normalize(
+            {
+                "panels": [
+                    {
+                        "id": 1,
+                        "title": "P",
+                        "type": "ts",
+                        "targets": [
+                            {"refId": "C", "expr": "metric_c"},
+                            {"refId": "A", "expr": "metric_a"},
+                            {"refId": "B", "expr": "metric_b"},
+                        ],
+                    }
                 ]
-            }]
-        })
+            }
+        )
         refs = [t["refId"] for t in result["panels"][0]["targets"]]
         assert refs == ["A", "B", "C"]
 
@@ -119,16 +162,19 @@ class TestTargetOrdering:
 # Template variable ordering
 # ---------------------------------------------------------------------------
 
+
 class TestTemplatingOrdering:
     def test_template_variables_sorted_by_name(self):
-        result = normalize({
-            "templating": {
-                "list": [
-                    {"name": "namespace", "type": "query"},
-                    {"name": "env",       "type": "custom"},
-                ]
+        result = normalize(
+            {
+                "templating": {
+                    "list": [
+                        {"name": "namespace", "type": "query"},
+                        {"name": "env", "type": "custom"},
+                    ]
+                }
             }
-        })
+        )
         names = [v["name"] for v in result["templating"]["list"]]
         assert names == ["env", "namespace"]
 
@@ -141,16 +187,19 @@ class TestTemplatingOrdering:
 # Annotation ordering
 # ---------------------------------------------------------------------------
 
+
 class TestAnnotationOrdering:
     def test_annotations_sorted_by_name(self):
-        result = normalize({
-            "annotations": {
-                "list": [
-                    {"name": "Deployments", "enable": True},
-                    {"name": "Alerts",      "enable": False},
-                ]
+        result = normalize(
+            {
+                "annotations": {
+                    "list": [
+                        {"name": "Deployments", "enable": True},
+                        {"name": "Alerts", "enable": False},
+                    ]
+                }
             }
-        })
+        )
         names = [a["name"] for a in result["annotations"]["list"]]
         assert names == ["Alerts", "Deployments"]
 
@@ -158,6 +207,7 @@ class TestAnnotationOrdering:
 # ---------------------------------------------------------------------------
 # Nested (row) panels
 # ---------------------------------------------------------------------------
+
 
 class TestNestedPanels:
     def test_nested_panels_strip_id(self):
@@ -177,18 +227,19 @@ class TestNestedPanels:
 # Full fixture round-trip
 # ---------------------------------------------------------------------------
 
+
 class TestFixtureRoundTrip:
     def test_messy_fixture_is_idempotent(self):
         """Normalizing twice should produce the same output."""
-        first  = normalize(load("messy.json"))
+        first = normalize(load("messy.json"))
         second = normalize(first)
         assert first == second
 
     def test_messy_fixture_strips_all_noise(self):
         result = normalize(load("messy.json"))
-        assert "id"        not in result
+        assert "id" not in result
         assert "iteration" not in result
-        assert "version"   not in result
+        assert "version" not in result
 
     def test_messy_fixture_panel_order(self):
         result = normalize(load("messy.json"))
@@ -226,6 +277,7 @@ class TestFixtureRoundTrip:
 # panels, reordered targets, relocated templating/annotations blocks — must
 # be invisible after normalization.
 # ---------------------------------------------------------------------------
+
 
 class TestTwoVersionDiff:
     def _diff_keys(self, a: dict, b: dict, path: str = "") -> list[str]:
@@ -267,8 +319,9 @@ class TestTwoVersionDiff:
         assert "tags" not in changed, "tags should be hidden by lenient mode"
         # Nothing outside panels should differ
         unexpected = [p for p in changed if not p.startswith("panels")]
-        assert unexpected == [], f"unexpected differences after normalization: {unexpected}"
-
+        assert unexpected == [], (
+            f"unexpected differences after normalization: {unexpected}"
+        )
 
     def test_target_order_identical(self):
         """Targets must be in the same refId order in both versions."""

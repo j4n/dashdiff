@@ -16,13 +16,12 @@ can see exactly what the stored JSON contains.
 
 from __future__ import annotations
 
-import pytest
 from dashdiff.normalize import normalize
-
 
 # ---------------------------------------------------------------------------
 # Lenient mode: null keys are stripped
 # ---------------------------------------------------------------------------
+
 
 class TestLenientNullStripping:
     def test_top_level_null_key_removed(self):
@@ -32,28 +31,38 @@ class TestLenientNullStripping:
 
     def test_nested_null_key_removed(self):
         """Null values inside nested objects must be stripped."""
-        result = normalize({
-            "panels": [{
-                "title": "P", "type": "stat",
-                "fieldConfig": {"defaults": {"unit": None}},
-            }]
-        })
+        result = normalize(
+            {
+                "panels": [
+                    {
+                        "title": "P",
+                        "type": "stat",
+                        "fieldConfig": {"defaults": {"unit": None}},
+                    }
+                ]
+            }
+        )
         assert "unit" not in result["panels"][0]["fieldConfig"]["defaults"]
 
     def test_deeply_nested_null_removed(self):
         """Null values several levels deep must be stripped."""
-        result = normalize({
-            "panels": [{
-                "title": "P", "type": "stat",
-                "fieldConfig": {
-                    "defaults": {
-                        "thresholds": {
-                            "steps": [{"color": "green", "value": None}]
-                        }
+        result = normalize(
+            {
+                "panels": [
+                    {
+                        "title": "P",
+                        "type": "stat",
+                        "fieldConfig": {
+                            "defaults": {
+                                "thresholds": {
+                                    "steps": [{"color": "green", "value": None}]
+                                }
+                            }
+                        },
                     }
-                },
-            }]
-        })
+                ]
+            }
+        )
         step = result["panels"][0]["fieldConfig"]["defaults"]["thresholds"]["steps"][0]
         assert "value" not in step
 
@@ -65,7 +74,9 @@ class TestLenientNullStripping:
 
     def test_false_value_preserved(self):
         """False is not null — must be kept."""
-        result = normalize({"panels": [{"title": "P", "type": "stat", "transparent": False}]})
+        result = normalize(
+            {"panels": [{"title": "P", "type": "stat", "transparent": False}]}
+        )
         assert result["panels"][0]["transparent"] is False
 
     def test_zero_value_preserved(self):
@@ -75,13 +86,16 @@ class TestLenientNullStripping:
 
     def test_empty_string_preserved(self):
         """Empty string is not null — must be kept."""
-        result = normalize({"panels": [{"title": "P", "type": "stat", "description": ""}]})
+        result = normalize(
+            {"panels": [{"title": "P", "type": "stat", "description": ""}]}
+        )
         assert result["panels"][0]["description"] == ""
 
     def test_null_in_array_preserved(self):
         """Null *elements* inside arrays are not stripped (only dict keys)."""
-        result = normalize({"panels": [{"title": "P", "type": "stat",
-                                        "someList": [None, 1, 2]}]})
+        result = normalize(
+            {"panels": [{"title": "P", "type": "stat", "someList": [None, 1, 2]}]}
+        )
         assert result["panels"][0]["someList"] == [None, 1, 2]
 
     def test_null_vs_absent_produces_identical_output(self):
@@ -89,22 +103,36 @@ class TestLenientNullStripping:
         A dashboard with ``{"value": null}`` and one without ``"value"``
         must produce identical normalized output in lenient mode.
         """
-        with_null = normalize({
-            "panels": [{
-                "title": "P", "type": "stat",
-                "fieldConfig": {"defaults": {"thresholds": {
-                    "steps": [{"color": "green", "value": None}]
-                }}},
-            }]
-        })
-        without_key = normalize({
-            "panels": [{
-                "title": "P", "type": "stat",
-                "fieldConfig": {"defaults": {"thresholds": {
-                    "steps": [{"color": "green"}]
-                }}},
-            }]
-        })
+        with_null = normalize(
+            {
+                "panels": [
+                    {
+                        "title": "P",
+                        "type": "stat",
+                        "fieldConfig": {
+                            "defaults": {
+                                "thresholds": {
+                                    "steps": [{"color": "green", "value": None}]
+                                }
+                            }
+                        },
+                    }
+                ]
+            }
+        )
+        without_key = normalize(
+            {
+                "panels": [
+                    {
+                        "title": "P",
+                        "type": "stat",
+                        "fieldConfig": {
+                            "defaults": {"thresholds": {"steps": [{"color": "green"}]}}
+                        },
+                    }
+                ]
+            }
+        )
         assert with_null == without_key
 
     def test_idempotent_after_null_stripping(self):
@@ -113,18 +141,20 @@ class TestLenientNullStripping:
             "title": "x",
             "panels": [{"title": "P", "type": "stat", "description": None}],
         }
-        first  = normalize(dashboard)
+        first = normalize(dashboard)
         second = normalize(first)
         assert first == second
 
     def test_multiple_null_keys_all_removed(self):
         """Multiple null keys at the same level must all be stripped."""
-        result = normalize({
-            "title": "x",
-            "description": None,
-            "uid": None,
-            "timezone": "browser",
-        })
+        result = normalize(
+            {
+                "title": "x",
+                "description": None,
+                "uid": None,
+                "timezone": "browser",
+            }
+        )
         assert "description" not in result
         assert "uid" not in result
         assert result["timezone"] == "browser"
@@ -133,6 +163,7 @@ class TestLenientNullStripping:
 # ---------------------------------------------------------------------------
 # Strict mode: null values are preserved
 # ---------------------------------------------------------------------------
+
 
 class TestStrictNullPreservation:
     def test_top_level_null_preserved_in_strict(self):
@@ -143,28 +174,40 @@ class TestStrictNullPreservation:
 
     def test_nested_null_preserved_in_strict(self):
         """Strict mode must keep nested null values intact."""
-        result = normalize({
-            "panels": [{
-                "title": "P", "type": "stat",
-                "fieldConfig": {"defaults": {"unit": None}},
-            }]
-        }, strict=True)
+        result = normalize(
+            {
+                "panels": [
+                    {
+                        "title": "P",
+                        "type": "stat",
+                        "fieldConfig": {"defaults": {"unit": None}},
+                    }
+                ]
+            },
+            strict=True,
+        )
         assert result["panels"][0]["fieldConfig"]["defaults"]["unit"] is None
 
     def test_deeply_nested_null_preserved_in_strict(self):
         """Strict mode must keep deeply nested null values intact."""
-        result = normalize({
-            "panels": [{
-                "title": "P", "type": "stat",
-                "fieldConfig": {
-                    "defaults": {
-                        "thresholds": {
-                            "steps": [{"color": "green", "value": None}]
-                        }
+        result = normalize(
+            {
+                "panels": [
+                    {
+                        "title": "P",
+                        "type": "stat",
+                        "fieldConfig": {
+                            "defaults": {
+                                "thresholds": {
+                                    "steps": [{"color": "green", "value": None}]
+                                }
+                            }
+                        },
                     }
-                },
-            }]
-        }, strict=True)
+                ]
+            },
+            strict=True,
+        )
         step = result["panels"][0]["fieldConfig"]["defaults"]["thresholds"]["steps"][0]
         assert "value" in step
         assert step["value"] is None
@@ -174,16 +217,36 @@ class TestStrictNullPreservation:
         In strict mode, ``{"value": null}`` and ``{}`` must NOT be equal
         after normalization — the null is preserved.
         """
-        with_null = normalize({
-            "panels": [{"title": "P", "type": "stat",
-                        "fieldConfig": {"defaults": {"thresholds": {
-                            "steps": [{"color": "green", "value": None}]
-                        }}}}]
-        }, strict=True)
-        without_key = normalize({
-            "panels": [{"title": "P", "type": "stat",
-                        "fieldConfig": {"defaults": {"thresholds": {
-                            "steps": [{"color": "green"}]
-                        }}}}]
-        }, strict=True)
+        with_null = normalize(
+            {
+                "panels": [
+                    {
+                        "title": "P",
+                        "type": "stat",
+                        "fieldConfig": {
+                            "defaults": {
+                                "thresholds": {
+                                    "steps": [{"color": "green", "value": None}]
+                                }
+                            }
+                        },
+                    }
+                ]
+            },
+            strict=True,
+        )
+        without_key = normalize(
+            {
+                "panels": [
+                    {
+                        "title": "P",
+                        "type": "stat",
+                        "fieldConfig": {
+                            "defaults": {"thresholds": {"steps": [{"color": "green"}]}}
+                        },
+                    }
+                ]
+            },
+            strict=True,
+        )
         assert with_null != without_key

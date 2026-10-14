@@ -17,13 +17,11 @@ Key invariants:
 
 from __future__ import annotations
 
-import pytest
 from dashdiff.grid import (
     GridPanel,
     _panel_render_height,
     band_max_height,
     title_line_count,
-    GRID_COLUMNS,
 )
 
 
@@ -42,6 +40,7 @@ def _make_panel(title: str, x: int, w: int, h: int = 4, y: int = 0) -> GridPanel
 # ---------------------------------------------------------------------------
 # title_line_count
 # ---------------------------------------------------------------------------
+
 
 class TestTitleLineCount:
     def test_short_title_fits_on_one_line(self):
@@ -69,6 +68,7 @@ class TestTitleLineCount:
 # ---------------------------------------------------------------------------
 # _panel_render_height with grid_h
 # ---------------------------------------------------------------------------
+
 
 class TestPanelRenderHeight:
     def test_grid_h_larger_than_content_minimum_wins(self):
@@ -103,17 +103,17 @@ _MIN_HEIGHT = 4  # 2 borders + 1 title line + 1 badge line
 class TestBandMaxHeight:
     def test_all_short_titles_returns_minimum(self):
         panels = [
-            _make_panel("RTT",    x=0,  w=6),
-            _make_panel("Pairs",  x=6,  w=6),
+            _make_panel("RTT", x=0, w=6),
+            _make_panel("Pairs", x=6, w=6),
             _make_panel("Failed", x=12, w=6),
-            _make_panel("OK",     x=18, w=6),
+            _make_panel("OK", x=18, w=6),
         ]
         assert band_max_height(panels, console_width=160) == _MIN_HEIGHT
 
     def test_one_long_title_raises_band_above_minimum(self):
         panels = [
-            _make_panel("RTT",    x=0,  w=6),
-            _make_panel("Pairs",  x=6,  w=6),
+            _make_panel("RTT", x=0, w=6),
+            _make_panel("Pairs", x=6, w=6),
             _make_panel("Failed", x=12, w=6),
             _make_panel("A" * 60, x=18, w=6),
         ]
@@ -124,14 +124,14 @@ class TestBandMaxHeight:
 
     def test_narrow_console_wraps_earlier(self):
         panels = [
-            _make_panel("Short",  x=0, w=6),
+            _make_panel("Short", x=0, w=6),
             _make_panel("A" * 30, x=6, w=6),
         ]
         assert band_max_height(panels, console_width=80) > _MIN_HEIGHT
 
     def test_taller_grid_h_raises_band_height(self):
         panels = [
-            _make_panel("RTT",   x=0,  w=12, h=4),
+            _make_panel("RTT", x=0, w=12, h=4),
             _make_panel("Graph", x=12, w=12, h=9),
         ]
         assert band_max_height(panels, console_width=160) >= 9
@@ -144,6 +144,7 @@ class TestBandMaxHeight:
 
     def test_proportionality_across_bands(self):
         short_band = [_make_panel("X", x=0, w=24, h=4)]
-        tall_band  = [_make_panel("X", x=0, w=24, h=8)]
-        assert band_max_height(tall_band, console_width=160) > \
-               band_max_height(short_band, console_width=160)
+        tall_band = [_make_panel("X", x=0, w=24, h=8)]
+        assert band_max_height(tall_band, console_width=160) > band_max_height(
+            short_band, console_width=160
+        )

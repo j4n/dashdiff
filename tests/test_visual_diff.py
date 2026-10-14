@@ -8,9 +8,7 @@ The rendering layer (Rich) is tested implicitly by the live demo.
 Run with:  python -m pytest tests/ -v
 """
 
-import pytest
-from dashdiff.visual_diff import compute_diff, DiffLine, DiffKind
-
+from dashdiff.visual_diff import DiffKind, DiffLine, compute_diff
 
 # ---------------------------------------------------------------------------
 # compute_diff contract
@@ -22,6 +20,7 @@ from dashdiff.visual_diff import compute_diff, DiffLine, DiffKind
 #   .text  : str   — the line content (without trailing newline)
 #   .kind  : DiffKind — SAME | REMOVED | ADDED | EMPTY
 # ---------------------------------------------------------------------------
+
 
 class TestDiffKindEnum:
     def test_same_exists(self):
@@ -64,18 +63,18 @@ class TestComputeDiffIdentical:
     def test_all_rows_are_same(self):
         result = compute_diff(self.LINES, self.LINES)
         for left, right in result:
-            assert left.kind  == DiffKind.SAME
+            assert left.kind == DiffKind.SAME
             assert right.kind == DiffKind.SAME
 
     def test_text_is_preserved(self):
         result = compute_diff(self.LINES, self.LINES)
         for (left, right), expected in zip(result, self.LINES):
-            assert left.text  == expected
+            assert left.text == expected
             assert right.text == expected
 
 
 class TestComputeDiffAddedLine:
-    LEFT  = ["a", "b"]
+    LEFT = ["a", "b"]
     RIGHT = ["a", "b", "c"]
 
     def test_added_line_appears_on_right(self):
@@ -95,7 +94,7 @@ class TestComputeDiffAddedLine:
 
 
 class TestComputeDiffRemovedLine:
-    LEFT  = ["a", "b", "c"]
+    LEFT = ["a", "b", "c"]
     RIGHT = ["a", "b"]
 
     def test_removed_line_appears_on_left(self):
@@ -115,7 +114,7 @@ class TestComputeDiffRemovedLine:
 
 
 class TestComputeDiffChangedLine:
-    LEFT  = ["a", "old", "c"]
+    LEFT = ["a", "old", "c"]
     RIGHT = ["a", "new", "c"]
 
     def test_changed_line_marked_removed_on_left(self):
@@ -144,14 +143,14 @@ class TestComputeDiffEmptyInputs:
         result = compute_diff([], ["x"])
         assert len(result) == 1
         left, right = result[0]
-        assert left.kind  == DiffKind.EMPTY
+        assert left.kind == DiffKind.EMPTY
         assert right.kind == DiffKind.ADDED
 
     def test_right_empty(self):
         result = compute_diff(["x"], [])
         assert len(result) == 1
         left, right = result[0]
-        assert left.kind  == DiffKind.REMOVED
+        assert left.kind == DiffKind.REMOVED
         assert right.kind == DiffKind.EMPTY
 
 
@@ -159,7 +158,7 @@ class TestComputeDiffSymmetry:
     """Swapping left and right should swap ADDED/REMOVED but keep SAME."""
 
     def test_swap_inverts_kinds(self):
-        left  = ["a", "b", "c"]
+        left = ["a", "b", "c"]
         right = ["a", "x", "c"]
         fwd = compute_diff(left, right)
         rev = compute_diff(right, left)
@@ -168,10 +167,10 @@ class TestComputeDiffSymmetry:
         # So the *texts* swap sides; the kinds on each side stay REMOVED/ADDED.
         # What we assert: the set of (text, kind) pairs is the same, just mirrored.
         fwd_removed_texts = {l.text for l, _ in fwd if l.kind == DiffKind.REMOVED}
-        rev_added_texts   = {r.text for _, r in rev if r.kind == DiffKind.ADDED}
+        rev_added_texts = {r.text for _, r in rev if r.kind == DiffKind.ADDED}
         assert fwd_removed_texts == rev_added_texts
 
-        fwd_added_texts   = {r.text for _, r in fwd if r.kind == DiffKind.ADDED}
+        fwd_added_texts = {r.text for _, r in fwd if r.kind == DiffKind.ADDED}
         rev_removed_texts = {l.text for l, _ in rev if l.kind == DiffKind.REMOVED}
         assert fwd_added_texts == rev_removed_texts
 

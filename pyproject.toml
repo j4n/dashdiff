@@ -24,3 +24,16 @@ packages = ["src/dashdiff"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+lint.select = [
+  "F", # Pyflakes
+  "I", # isort
+
+  "PLC", # Pylint Convention
+  "PLE", # Pylint Error
+  "PLW", # Pylint Warning
+]
+lint.ignore = [
+  "PLC0415" # import-outside-top-level
+]

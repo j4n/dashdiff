@@ -23,12 +23,13 @@ Rules under test:
 from __future__ import annotations
 
 import pytest
-from dashdiff.diff_paths import PathChange, diff_paths, MISSING
 
+from dashdiff.diff_paths import MISSING, PathChange, diff_paths
 
 # ---------------------------------------------------------------------------
 # MISSING sentinel
 # ---------------------------------------------------------------------------
+
 
 class TestMissingSentinel:
     def test_missing_is_not_none(self):
@@ -39,6 +40,7 @@ class TestMissingSentinel:
 
     def test_missing_is_singleton(self):
         from dashdiff.diff_paths import MISSING as M2
+
         assert MISSING is M2
 
     def test_missing_repr_is_informative(self):
@@ -48,6 +50,7 @@ class TestMissingSentinel:
 # ---------------------------------------------------------------------------
 # PathChange dataclass
 # ---------------------------------------------------------------------------
+
 
 class TestPathChange:
     def test_has_path_field(self):
@@ -71,6 +74,7 @@ class TestPathChange:
 # ---------------------------------------------------------------------------
 # diff_paths — scalar root
 # ---------------------------------------------------------------------------
+
 
 class TestDiffPathsScalar:
     def test_identical_scalars_no_change(self):
@@ -96,6 +100,7 @@ class TestDiffPathsScalar:
 # ---------------------------------------------------------------------------
 # diff_paths — flat dict
 # ---------------------------------------------------------------------------
+
 
 class TestDiffPathsFlatDict:
     def test_identical_dicts_no_change(self):
@@ -134,23 +139,24 @@ class TestDiffPathsFlatDict:
 # diff_paths — nested dict
 # ---------------------------------------------------------------------------
 
+
 class TestDiffPathsNestedDict:
     def test_nested_change_dotted_path(self):
         before = {"outer": {"inner": "old"}}
-        after  = {"outer": {"inner": "new"}}
+        after = {"outer": {"inner": "new"}}
         result = diff_paths(before, after)
         assert len(result) == 1
         assert result[0].path == "outer.inner"
 
     def test_deeply_nested_path(self):
         before = {"a": {"b": {"c": 1}}}
-        after  = {"a": {"b": {"c": 2}}}
+        after = {"a": {"b": {"c": 2}}}
         result = diff_paths(before, after)
         assert result[0].path == "a.b.c"
 
     def test_nested_added_key(self):
         before = {"a": {}}
-        after  = {"a": {"new_key": True}}
+        after = {"a": {"new_key": True}}
         result = diff_paths(before, after)
         assert result[0].path == "a.new_key"
         assert result[0].before is MISSING
@@ -159,6 +165,7 @@ class TestDiffPathsNestedDict:
 # ---------------------------------------------------------------------------
 # diff_paths — lists
 # ---------------------------------------------------------------------------
+
 
 class TestDiffPathsList:
     def test_identical_lists_no_change(self):
@@ -181,14 +188,14 @@ class TestDiffPathsList:
 
     def test_nested_list_in_dict(self):
         before = {"targets": [{"expr": "old"}]}
-        after  = {"targets": [{"expr": "new"}]}
+        after = {"targets": [{"expr": "new"}]}
         result = diff_paths(before, after)
         assert len(result) == 1
         assert result[0].path == "targets[0].expr"
 
     def test_list_of_dicts_multiple_changes(self):
         before = {"targets": [{"expr": "a", "refId": "A"}, {"expr": "b", "refId": "B"}]}
-        after  = {"targets": [{"expr": "a", "refId": "A"}, {"expr": "X", "refId": "B"}]}
+        after = {"targets": [{"expr": "a", "refId": "A"}, {"expr": "X", "refId": "B"}]}
         result = diff_paths(before, after)
         assert len(result) == 1
         assert result[0].path == "targets[1].expr"
@@ -197,6 +204,7 @@ class TestDiffPathsList:
 # ---------------------------------------------------------------------------
 # diff_paths — prefix argument
 # ---------------------------------------------------------------------------
+
 
 class TestDiffPathsPrefix:
     def test_prefix_prepended_to_path(self):

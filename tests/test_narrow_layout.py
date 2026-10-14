@@ -12,23 +12,22 @@ from __future__ import annotations
 
 import io
 
-import pytest
 from rich.console import Console
 from rich.table import Table
 
+from dashdiff.diff_paths import PathChange
 from dashdiff.grid import (
-    PanelChange,
-    GridPanel,
-    build_band_renderables,
     NARROW_WIDTH,
+    GridPanel,
+    PanelChange,
+    build_band_renderables,
     truncate_title,
 )
-from dashdiff.diff_paths import PathChange, MISSING
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _render(renderable, width: int) -> str:
     buf = io.StringIO()
@@ -44,12 +43,12 @@ def _render_all(renderables, width: int) -> str:
     return buf.getvalue()
 
 
-PANEL_A = GridPanel("Alpha", "timeseries", x=0,  y=0, w=12, h=8)
-PANEL_B = GridPanel("Beta",  "timeseries", x=12, y=0, w=12, h=8)
+PANEL_A = GridPanel("Alpha", "timeseries", x=0, y=0, w=12, h=8)
+PANEL_B = GridPanel("Beta", "timeseries", x=12, y=0, w=12, h=8)
 
 CHANGES_QUERY = {
     "Alpha": frozenset({PanelChange.MODIFIED_QUERY}),
-    "Beta":  frozenset({PanelChange.UNCHANGED}),
+    "Beta": frozenset({PanelChange.UNCHANGED}),
 }
 
 PATH_CHANGES = {
@@ -63,6 +62,7 @@ PATH_CHANGES = {
 # NARROW_WIDTH constant
 # ---------------------------------------------------------------------------
 
+
 class TestNarrowWidthConstant:
     def test_narrow_width_is_defined(self):
         assert isinstance(NARROW_WIDTH, int)
@@ -75,6 +75,7 @@ class TestNarrowWidthConstant:
 # ---------------------------------------------------------------------------
 # truncate_title
 # ---------------------------------------------------------------------------
+
 
 class TestTruncateTitle:
     def test_short_title_unchanged(self):
@@ -108,6 +109,7 @@ class TestTruncateTitle:
 # ---------------------------------------------------------------------------
 # Stacked grid band row (below NARROW_WIDTH)
 # ---------------------------------------------------------------------------
+
 
 class TestStackedGridBandRow:
     def test_narrow_output_contains_before_label(self):
@@ -175,6 +177,7 @@ class TestStackedGridBandRow:
 # ---------------------------------------------------------------------------
 # Stacked detail path table (below NARROW_WIDTH)
 # ---------------------------------------------------------------------------
+
 
 class TestStackedDetailPathTable:
     def test_narrow_detail_contains_path(self):
@@ -248,6 +251,7 @@ class TestStackedDetailPathTable:
         )
         # Second renderable is the detail RichPanel; its content is a Table
         from rich.panel import Panel as RichPanel
+
         detail_panels = [r for r in renderables if isinstance(r, RichPanel)]
         assert detail_panels, "Expected at least one detail RichPanel"
         output = _render_all(renderables, width=NARROW_WIDTH + 1)

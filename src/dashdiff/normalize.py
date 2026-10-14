@@ -41,6 +41,7 @@ _STRIP_PANEL_FIELDS: Final[frozenset[str]] = frozenset({"id"})
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _sort_keys(obj: object) -> object:
     """Recursively sort all object keys alphabetically.
 
@@ -102,7 +103,9 @@ def _normalize_panel(panel: dict[str, object], strict: bool) -> dict[str, object
     # targets: sorted by refId in both modes (refId is the stable identity)
     targets = p.get("targets")
     if isinstance(targets, list):
-        p["targets"] = sorted(targets, key=lambda t: t.get("refId", "") if isinstance(t, dict) else "")  # type: ignore[union-attr]
+        p["targets"] = sorted(
+            targets, key=lambda t: t.get("refId", "") if isinstance(t, dict) else ""
+        )  # type: ignore[union-attr]
 
     # transformations, overrides: pipeline — never reordered
     # (no action needed; they pass through as-is)
@@ -113,6 +116,7 @@ def _normalize_panel(panel: dict[str, object], strict: bool) -> dict[str, object
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def normalize(dashboard: dict[str, object], strict: bool = False) -> dict[str, object]:
     """

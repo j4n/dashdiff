@@ -35,6 +35,8 @@ import enum
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final
 
+from dashdiff.v2 import V2Panel, is_v2, node_spec, v2_panels
+
 if TYPE_CHECKING:
     from rich.console import Console
 
@@ -284,11 +286,31 @@ def _panel_to_grid(panel: dict[str, object]) -> GridPanel:
     )
 
 
+def _v2_panel_to_grid(panel: V2Panel) -> GridPanel:
+    placement = panel.placement
+    queries = []
+    for query in panel.queries:
+        query_spec = node_spec(query)
+        expr = node_spec(query_spec.get("query")).get("expr", "—")
+        queries.append(f"{query_spec.get('refId', '?')}: {expr}")
+    return GridPanel(
+        title=panel.title,
+        panel_type=panel.panel_type,
+        x=int(placement.get("x", 0)),  # type: ignore[arg-type]
+        y=int(placement.get("y", 0)),  # type: ignore[arg-type]
+        w=int(placement.get("width", GRID_COLUMNS)),  # type: ignore[arg-type]
+        h=int(placement.get("height", 1)),  # type: ignore[arg-type]
+        queries=tuple(queries),
+    )
+
+
 def extract_panels(dashboard: dict[str, object]) -> list[GridPanel]:
     """
     Flatten all panels (including nested row children) into a list of
     ``GridPanel`` objects.
     """
+    if is_v2(dashboard):
+        return [_v2_panel_to_grid(p) for p in v2_panels(dashboard)]
     raw_panels = dashboard.get("panels", [])
     if not isinstance(raw_panels, list) or not raw_panels:
         return []
@@ -341,7 +363,7 @@ _CHANGE_BADGE_TEXT: Final[dict[PanelChange, str]] = {
     PanelChange.ADDED: "+added",
     PanelChange.REMOVED: "-removed",
     PanelChange.MODIFIED_QUERY: "~query",
-    PanelChange.MODIFIED_TITLE: "~query",
+    PanelChange.MODIFIED_TITLE: "~title",
     PanelChange.MODIFIED_LAYOUT: "~layout",
     PanelChange.MODIFIED_CONFIG: "~config",
 }

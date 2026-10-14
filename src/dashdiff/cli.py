@@ -48,6 +48,8 @@ from dashdiff.grid import (
     render_grid,
 )
 from dashdiff.normalize import normalize
+from dashdiff.v2 import is_v2
+from dashdiff.v2_diff import classify_v2_changes, v2_path_changes
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -204,6 +206,18 @@ def cmd_diff(args: argparse.Namespace) -> None:
         sys.exit(1)  # non-zero exit like diff(1) when files differ
 
 
+def _classify(
+    before_norm: dict[str, object], after_norm: dict[str, object]
+) -> dict[str, frozenset[PanelChange]]:
+    """Classify panel changes for either dashboard format."""
+    if is_v2(before_norm) and is_v2(after_norm):
+        return classify_v2_changes(before_norm, after_norm)
+    return classify_changes(
+        before=before_norm.get("panels", []),  # type: ignore[arg-type]
+        after=after_norm.get("panels", []),  # type: ignore[arg-type]
+    )
+
+
 def cmd_visual(args: argparse.Namespace) -> None:
     """Rich terminal box-model grid visualiser."""
     import shutil
@@ -232,10 +246,7 @@ def cmd_visual(args: argparse.Namespace) -> None:
     after_panels = extract_panels(after_dash)
 
     # Classify changes per panel using the normalised dicts
-    changes: dict[str, frozenset[PanelChange]] = classify_changes(
-        before=before_norm.get("panels", []),  # type: ignore[arg-type]
-        after=after_norm.get("panels", []),  # type: ignore[arg-type]
-    )
+    changes: dict[str, frozenset[PanelChange]] = _classify(before_norm, after_norm)
     _unch = frozenset({PanelChange.UNCHANGED})
     changed = {t for t, k in changes.items() if k != _unch}
 
@@ -295,6 +306,8 @@ def detail_panel_changes(
     """
     before_norm = normalize(before_dash, strict=strict)
     after_norm = normalize(after_dash, strict=strict)
+    if is_v2(before_norm) and is_v2(after_norm):
+        return v2_path_changes(before_norm, after_norm)
 
     before_panels: dict[str, dict[str, object]] = {
         str(p.get("title", "")): p
@@ -342,10 +355,7 @@ def cmd_detail(args: argparse.Namespace) -> None:
     before_panels_grid = extract_panels(before_dash)
     after_panels_grid = extract_panels(after_dash)
 
-    changes_map: dict[str, frozenset[PanelChange]] = classify_changes(
-        before=before_norm.get("panels", []),  # type: ignore[arg-type]
-        after=after_norm.get("panels", []),  # type: ignore[arg-type]
-    )
+    changes_map: dict[str, frozenset[PanelChange]] = _classify(before_norm, after_norm)
     _unch = frozenset({PanelChange.UNCHANGED})
     changed_count = sum(1 for k in changes_map.values() if k != _unch)
 

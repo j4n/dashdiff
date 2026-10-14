@@ -32,10 +32,10 @@ We map this onto a Rich Table by:
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Final
 
-from dashdiff.v2 import V2Panel, is_v2, node_spec, v2_panels
+from dashdiff.v2 import V2Panel, V2Section, is_v2, node_spec, v2_panels
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -302,6 +302,58 @@ def _v2_panel_to_grid(panel: V2Panel) -> GridPanel:
         h=int(placement.get("height", 1)),  # type: ignore[arg-type]
         queries=tuple(queries),
     )
+
+
+AUTO_GRID_ROW_HEIGHT: Final[int] = 4  # auto grid heights are not in the file
+
+
+def auto_grid_panels(section: V2Section, panels: list[GridPanel]) -> list[GridPanel]:
+    """Lay *panels* out as an auto grid does: equal widths, fixed height, in order."""
+    raw_columns = section.settings.get("maxColumnCount", 1)
+    columns = max(
+        1, min(GRID_COLUMNS, raw_columns if isinstance(raw_columns, int) else 1)
+    )
+    width = GRID_COLUMNS // columns
+    return [
+        replace(
+            panel,
+            x=(i % columns) * width,
+            y=(i // columns) * AUTO_GRID_ROW_HEIGHT,
+            w=width,
+            h=AUTO_GRID_ROW_HEIGHT,
+        )
+        for i, panel in enumerate(panels)
+    ]
+
+
+def stacked_panels(panels: list[GridPanel]) -> list[GridPanel]:
+    """Place *panels* one under the other at full width."""
+    return [
+        replace(
+            panel,
+            x=0,
+            y=i * AUTO_GRID_ROW_HEIGHT,
+            w=GRID_COLUMNS,
+            h=AUTO_GRID_ROW_HEIGHT,
+        )
+        for i, panel in enumerate(panels)
+    ]
+
+
+def section_grid_panels(
+    section: V2Section, panels: dict[str, V2Panel], stacked: bool = False
+) -> list[GridPanel]:
+    """Return the grid panels of one layout section, in row-local coordinates."""
+    grid_panels = [
+        _v2_panel_to_grid(replace(panels[name], placement=placement))
+        for name, placement in section.items
+        if name in panels
+    ]
+    if stacked or section.kind not in ("GridLayout", "AutoGridLayout"):
+        return stacked_panels(grid_panels)
+    if section.kind == "AutoGridLayout":
+        return auto_grid_panels(section, grid_panels)
+    return grid_panels
 
 
 def extract_panels(dashboard: dict[str, object]) -> list[GridPanel]:

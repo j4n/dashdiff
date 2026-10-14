@@ -50,6 +50,7 @@ from dashdiff.grid import (
 from dashdiff.normalize import normalize
 from dashdiff.v2 import is_v2
 from dashdiff.v2_diff import classify_v2_changes, v2_path_changes
+from dashdiff.v2_view import print_v2_bands, print_v2_visual, v2_title
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -230,6 +231,10 @@ def cmd_visual(args: argparse.Namespace) -> None:
     if args.after is None:
         # Single-file mode — just show the grid
         dashboard = _load(args.before)
+        if is_v2(dashboard):
+            console.print(f"[bold]{v2_title(dashboard, args.before)}[/]")
+            print_v2_visual(console, dashboard)
+            return
         title = str(dashboard.get("title", args.before))
         panels = extract_panels(dashboard)
         render_grid(panels, title=title, console=console)
@@ -261,6 +266,10 @@ def cmd_visual(args: argparse.Namespace) -> None:
     )
     console.print(RichPanel(summary, expand=False))
     console.print(build_legend_renderable())
+
+    if is_v2(before_norm) and is_v2(after_norm):
+        print_v2_bands(console, before_norm, after_norm, changes, {}, True)
+        return
 
     # Interleaved layout: for each y-band, show the side-by-side row then
     # any detail panels for changed panels in that band.
@@ -376,6 +385,17 @@ def cmd_detail(args: argparse.Namespace) -> None:
 
     if not changed_count and not path_changes:
         console.print("[dim]No changes detected.[/]")
+        return
+
+    if is_v2(before_norm) and is_v2(after_norm):
+        print_v2_bands(
+            console,
+            before_norm,
+            after_norm,
+            changes_map,
+            path_changes,
+            getattr(args, "full", False),
+        )
         return
 
     # Group panels by y-band for both sides

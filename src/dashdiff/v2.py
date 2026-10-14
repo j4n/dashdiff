@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Final
 
 _V2_API_PREFIX: Final[str] = "dashboard.grafana.app/v2"
+UNPLACED_TITLE: Final[str] = "(not placed in the layout)"
 
 
 def spec_of(dashboard: dict[str, object]) -> dict[str, object]:
@@ -63,32 +64,62 @@ class V2Panel:
         return [q for q in queries or [] if isinstance(q, dict)]
 
 
-def _walk_layout(
-    node: object,
-    section: tuple[str, ...],
-    placed: dict[str, tuple[tuple[str, ...], dict]],
-) -> None:
-    """Record the section and placement of every element reference below *node*."""
+@dataclass(frozen=True, slots=True)
+class V2Section:
+    """A leaf layout (grid or auto grid) with the row or tab titles above it."""
+
+    path: tuple[str, ...]
+    kind: str
+    settings: dict[str, object]
+    items: tuple[tuple[str, dict[str, object]], ...]
+    node: dict[str, object] = field(compare=False, default_factory=dict)
+
+
+def _walk_layout(node: object, path: tuple[str, ...], found: list[V2Section]) -> None:
+    """Append a ``V2Section`` for every leaf layout below *node*."""
+    if not isinstance(node, dict) or not node:
+        return
     spec = node_spec(node)
-    for container in ("rows", "tabs"):
-        for child in spec.get(container) or []:
+    containers = [c for key in ("rows", "tabs") for c in spec.get(key) or []]
+    if "rows" in spec or "tabs" in spec:
+        for child in containers:
             title = str(node_spec(child).get("title", ""))
-            _walk_layout(node_spec(child).get("layout"), (*section, title), placed)
+            _walk_layout(node_spec(child).get("layout"), (*path, title), found)
+        return
+    items = []
     for item in spec.get("items") or []:
         item_spec = node_spec(item)
         reference = item_spec.get("element")
         name = reference.get("name") if isinstance(reference, dict) else None
         if isinstance(name, str):
-            placement = {k: v for k, v in item_spec.items() if k != "element"}
-            placed.setdefault(name, (section, placement))
+            items.append((name, {k: v for k, v in item_spec.items() if k != "element"}))
+    settings = {k: v for k, v in spec.items() if k != "items"}
+    found.append(
+        V2Section(path, str(node.get("kind", "")), settings, tuple(items), node)
+    )
+
+
+def v2_sections(dashboard: dict[str, object]) -> list[V2Section]:
+    """Return the leaf layouts of a v2 dashboard in document order."""
+    found: list[V2Section] = []
+    spec = spec_of(dashboard)
+    _walk_layout(spec.get("layout"), (), found)
+    elements = spec.get("elements")
+    placed = {name for section in found for name, _ in section.items}
+    unplaced = [k for k in elements or [] if k not in placed]
+    if unplaced:
+        items = tuple((str(key), {}) for key in unplaced)
+        found.append(V2Section((UNPLACED_TITLE,), "", {}, items))
+    return found
 
 
 def v2_panels(dashboard: dict[str, object]) -> list[V2Panel]:
     """Return one ``V2Panel`` per element, in element order."""
-    spec = spec_of(dashboard)
-    elements = spec.get("elements")
-    placed: dict[str, tuple[tuple[str, ...], dict]] = {}
-    _walk_layout(spec.get("layout"), (), placed)
+    elements = spec_of(dashboard).get("elements")
+    placed: dict[str, tuple[tuple[str, ...], dict[str, object]]] = {}
+    for section in v2_sections(dashboard):
+        for name, placement in section.items:
+            placed.setdefault(name, (section.path, placement))
     if not isinstance(elements, dict):
         return []
     return [

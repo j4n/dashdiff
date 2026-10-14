@@ -590,7 +590,7 @@ def _panel_cell(
     fixed_height:
         If given, the panel is rendered at exactly this many terminal rows
         (passed directly to ``rich.panel.Panel(height=…)``).  Used by
-        ``build_grid_renderables`` to equalise all panels in a band.
+        ``build_band_renderables`` to equalise all panels in a band.
     """
     from rich import box as rich_box
     from rich.panel import Panel
@@ -636,102 +636,6 @@ def _spacer_cell(w: int) -> object:
     from rich.panel import Panel
 
     return Panel("", border_style="dim", box=rich_box.MINIMAL, padding=(0, 0))
-
-
-def build_grid_renderables(
-    panels: list[GridPanel],
-    title: str = "",
-    changes: dict[str, frozenset[PanelChange]] | None = None,
-    console_width: int = 160,
-) -> list[object]:
-    """
-    Build and return a list of Rich renderables representing the dashboard grid.
-
-    Unlike ``render_grid``, this function does not print anything — it returns
-    the renderables so callers can embed them inside other Rich layouts (e.g.
-    a side-by-side outer table).
-
-    Parameters
-    ----------
-    changes:
-        Mapping of panel title → ``frozenset[PanelChange]`` from
-        ``classify_changes()``.  Panels absent from the map are treated as
-        ``{UNCHANGED}``.
-    console_width:
-        Estimated terminal width used for title-wrapping height calculations.
-        Defaults to 160 (a safe minimum for modern terminals).
-    """
-    from rich.rule import Rule
-    from rich.table import Table
-    from rich.text import Text
-
-    effective_changes: dict[str, frozenset[PanelChange]] = changes or {}
-    renderables: list[object] = []
-
-    if title:
-        renderables.append(Rule(f"[bold]{title}[/]", style="dim"))
-
-    renderables.append(build_legend_renderable())
-
-    if not panels:
-        renderables.append(Text("(no panels)", style="dim"))
-        return renderables
-
-    bands: dict[int, list[GridPanel]] = {}
-    for p in panels:
-        bands.setdefault(p.y, []).append(p)
-
-    # Estimate console width for height equalisation.
-    # build_grid_renderables is called from render_grid (which knows the
-    # console width) and from cli.py (which uses the terminal width).  We
-    # default to 160 as a safe minimum; callers can override via console_width.
-    _cw = console_width
-
-    for y in sorted(bands):
-        row_panels = sorted(bands[y], key=lambda p: p.x)
-
-        # Compute the maximum title height across all real panels in this band
-        # so we can pad shorter panels to match.
-        max_h = band_max_height(row_panels, console_width=_cw)
-
-        band_table = Table(
-            box=None,
-            show_header=False,
-            show_edge=False,
-            padding=(0, 0),
-            expand=True,
-        )
-        cursor = 0
-        cells: list[tuple[int, GridPanel | None]] = []
-        for p in row_panels:
-            if p.x > cursor:
-                cells.append((p.x - cursor, None))
-            cells.append((p.w, p))
-            cursor = p.x + p.w
-        if cursor < GRID_COLUMNS:
-            cells.append((GRID_COLUMNS - cursor, None))
-        unit_px = max(1, _cw // GRID_COLUMNS)
-        for w, _ in cells:
-            band_table.add_column(ratio=w, min_width=w * unit_px)
-
-        row_cells: list[object] = []
-        for w, p in cells:
-            if p is None:
-                row_cells.append(_spacer_cell(w))
-            else:
-                row_cells.append(
-                    _panel_cell(
-                        p,
-                        change=effective_changes.get(
-                            p.title, frozenset({PanelChange.UNCHANGED})
-                        ),
-                        fixed_height=max_h,
-                    )
-                )
-        band_table.add_row(*row_cells)
-        renderables.append(band_table)
-
-    return renderables
 
 
 def build_band_renderables(
